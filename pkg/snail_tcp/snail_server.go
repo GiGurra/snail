@@ -118,7 +118,7 @@ func (s *SnailServer) loopConn(conn net.Conn) {
 
 	for {
 
-		accumBuf.EnsureSpareBytes(s.opts.ReadBufSize)
+		accumBuf.EnsureSpareCapacity(s.opts.ReadBufSize)
 
 		n, err := conn.Read(accumBuf.UnderlyingWriteable())
 		if err != nil {
