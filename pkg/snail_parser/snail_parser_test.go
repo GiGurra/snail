@@ -226,7 +226,7 @@ func TestWriteAll_WriteReadStructs(t *testing.T) {
 	}
 
 	if buffer.NumBytesReadable() != 25 {
-		t.Fatalf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 25 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	valuesBack, err := ParseAll(buffer, testStructParser)
