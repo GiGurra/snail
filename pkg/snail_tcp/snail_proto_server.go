@@ -42,10 +42,10 @@ func (s *CustomProtoServer) Port() int {
 	return s.socket.Addr().(*net.TCPAddr).Port
 }
 
-func (c *CustomProtoServer) Run() {
-	defer close(c.recvCh)
+func (s *CustomProtoServer) Run() {
+	defer close(s.recvCh)
 	for {
-		conn, err := c.socket.Accept()
+		conn, err := s.socket.Accept()
 		if err != nil {
 			// if is socket closed, exit
 			if errors.Is(err, net.ErrClosed) {
@@ -56,7 +56,7 @@ func (c *CustomProtoServer) Run() {
 			continue
 		}
 
-		if c.optimization == OptimizeForThroughput {
+		if s.optimization == OptimizeForThroughput {
 			err = conn.(*net.TCPConn).SetNoDelay(false) // we favor latency over throughput here.
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY=false: %v. Proceeding anyway :S", err))
@@ -69,18 +69,18 @@ func (c *CustomProtoServer) Run() {
 		}
 
 		slog.Debug("Accepted connection", slog.String("remote_addr", conn.RemoteAddr().String()))
-		go c.loopConn(conn)
+		go s.loopConn(conn)
 	}
 }
 
-func (c *CustomProtoServer) Close() {
-	err := c.socket.Close()
+func (s *CustomProtoServer) Close() {
+	err := s.socket.Close()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to close socket: %v", err))
 	}
 }
 
-func (c *CustomProtoServer) loopConn(conn net.Conn) {
+func (s *CustomProtoServer) loopConn(conn net.Conn) {
 	// read all messages see https://stackoverflow.com/questions/51046139/reading-data-from-socket-golang
 	readBuf := make([]byte, 1024)
 	accumBuf := snail_buffer.New(snail_buffer.BigEndian, 1024)
@@ -106,12 +106,12 @@ func (c *CustomProtoServer) loopConn(conn net.Conn) {
 		}
 		slog.Debug(fmt.Sprintf("Read %d bytes", n))
 		accumBuf.WriteBytes(readBuf[:n])
-		msgs, err := TryReadMsgs(accumBuf)
+		messages, err := TryReadMsgs(accumBuf)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to read messages: %v", err))
 			giveUp()
 			return
 		}
-		c.recvCh <- msgs
+		s.recvCh <- messages
 	}
 }
