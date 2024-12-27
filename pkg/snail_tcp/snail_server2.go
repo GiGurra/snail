@@ -12,7 +12,7 @@ import (
 // ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
 type ServerConnHandler func(*snail_buffer.Buffer, io.Writer) error
 
-type SnailServer2 struct {
+type SnailServer struct {
 	socket         net.Listener
 	newHandlerFunc func() ServerConnHandler
 	opts           SnailServerOpts
@@ -36,13 +36,13 @@ func NewServer(
 	port int,
 	newHandlerFunc func() ServerConnHandler,
 	opts *SnailServerOpts,
-) (*SnailServer2, error) {
+) (*SnailServer, error) {
 	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 
-	res := &SnailServer2{
+	res := &SnailServer{
 		socket:         socket,
 		newHandlerFunc: newHandlerFunc,
 		opts: func() SnailServerOpts {
@@ -58,11 +58,11 @@ func NewServer(
 	return res, nil
 }
 
-func (s *SnailServer2) Port() int {
+func (s *SnailServer) Port() int {
 	return s.socket.Addr().(*net.TCPAddr).Port
 }
 
-func (s *SnailServer2) Run() {
+func (s *SnailServer) Run() {
 
 	for {
 		conn, err := s.socket.Accept()
@@ -93,14 +93,14 @@ func (s *SnailServer2) Run() {
 	}
 }
 
-func (s *SnailServer2) Close() {
+func (s *SnailServer) Close() {
 	err := s.socket.Close()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to close socket: %v", err))
 	}
 }
 
-func (s *SnailServer2) loopConn(conn net.Conn) {
+func (s *SnailServer) loopConn(conn net.Conn) {
 	// read all messages see https://stackoverflow.com/questions/51046139/reading-data-from-socket-golang
 	accumBuf := snail_buffer.New(snail_buffer.BigEndian, s.opts.ReadBufSize)
 	handler := s.newHandlerFunc()
