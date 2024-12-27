@@ -1,4 +1,4 @@
-package custom_proto
+package snail_legacy_prototype
 
 import (
 	"fmt"
