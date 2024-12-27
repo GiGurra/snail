@@ -101,3 +101,45 @@ func TestByteBuffer_ReadInt16LittleEndian(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 0x1234, val)
 	}
 }
+
+func TestByteBuffer_CanRead(t *testing.T) {
+	// write Two consecutive int16 and read them
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	if !bb.CanRead(4) {
+		t.Errorf("Expected true, got false")
+	}
+
+	if bb.Readable() != 4 {
+		t.Errorf("Expected %v, got %v", 4, bb.Readable())
+	}
+
+	val1, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val1 != 0x1234 {
+		t.Errorf("Expected %v, got %v", 0x1234, val1)
+	}
+	if !bb.CanRead(2) {
+		t.Errorf("Expected true, got false")
+	}
+	if bb.Readable() != 2 {
+		t.Errorf("Expected %v, got %v", 2, bb.Readable())
+	}
+
+	val2, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val2 != 0x5678 {
+		t.Errorf("Expected %v, got %v", 0x5678, val2)
+	}
+	if bb.CanRead(1) {
+		t.Errorf("Expected false, got true")
+	}
+	if bb.Readable() != 0 {
+		t.Errorf("Expected %v, got %v", 0, bb.Readable())
+	}
+}

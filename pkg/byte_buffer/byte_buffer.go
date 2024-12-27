@@ -108,6 +108,10 @@ func (b *ByteBuffer) CanRead(n int) bool {
 	return b.readPos+n <= len(b.buf)
 }
 
+func (b *ByteBuffer) Readable() int {
+	return len(b.buf) - b.readPos
+}
+
 func (b *ByteBuffer) ReadInt32() (int32, error) {
 	if !b.CanRead(4) {
 		return 0, fmt.Errorf("not enough data to read int32")
