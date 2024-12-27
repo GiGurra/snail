@@ -8,9 +8,8 @@ import (
 type ParseOneStatus int
 
 const (
-	ParseOneStatusOK      ParseOneStatus = iota
-	ParseOneStatusNEB     ParseOneStatus = iota
-	ParseOneStatusInvalid ParseOneStatus = iota
+	ParseOneStatusOK  ParseOneStatus = iota
+	ParseOneStatusNEB ParseOneStatus = iota
 )
 
 type ParseOneResult[T any] struct {
@@ -34,6 +33,9 @@ func ParseAll[T any](
 	for {
 		bufferReadPosBefore := buffer.ReadPos()
 		result := parseFunc(buffer)
+		if result.Err != nil {
+			return results, fmt.Errorf("failed to parse, stream corrupt: %w", result.Err)
+		}
 		switch result.Status {
 		case ParseOneStatusOK:
 			results = append(results, result.Value)
@@ -41,8 +43,6 @@ func ParseAll[T any](
 			buffer.SetReadPos(bufferReadPosBefore)
 			buffer.DiscardReadBytes()
 			return results, nil
-		case ParseOneStatusInvalid:
-			return results, fmt.Errorf("failed to parse, stream corrupt: %w", result.Err)
 		}
 	}
 }

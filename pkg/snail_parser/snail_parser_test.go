@@ -15,7 +15,6 @@ func IntParser(buffer *snail_buffer.Buffer) ParseOneResult[int] {
 	}
 	i32, err := buffer.ReadInt32()
 	if err != nil {
-		res.Status = ParseOneStatusInvalid
 		res.Err = fmt.Errorf("failed to parse int: %w", err)
 		return res
 	}
@@ -172,19 +171,16 @@ func testStructParser(buffer *snail_buffer.Buffer) ParseOneResult[testStruct] {
 	}
 	type_, err := buffer.ReadInt32()
 	if err != nil {
-		res.Status = ParseOneStatusInvalid
 		res.Err = fmt.Errorf("failed to parse type: %w", err)
 		return res
 	}
 	strlen, err := buffer.ReadInt32()
 	if err != nil {
-		res.Status = ParseOneStatusInvalid
 		res.Err = fmt.Errorf("failed to parse strlen: %w", err)
 		return res
 	}
 
 	if strlen > testStructMaxTextLen {
-		res.Status = ParseOneStatusInvalid
 		res.Err = fmt.Errorf("strlen too large: %v", strlen)
 		return res
 	}
@@ -195,7 +191,6 @@ func testStructParser(buffer *snail_buffer.Buffer) ParseOneResult[testStruct] {
 	}
 	text, err := buffer.ReadString(int(strlen))
 	if err != nil {
-		res.Status = ParseOneStatusInvalid
 		res.Err = fmt.Errorf("failed to parse text: %w", err)
 		return res
 	}
