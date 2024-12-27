@@ -22,6 +22,7 @@ type SnailServerOpts struct {
 	//MaxConnections int // TODO: implement support for this
 	Optimization OptimizationType
 	ReadBufSize  int
+	Port         int
 }
 
 func (s SnailServerOpts) WithDefaults() SnailServerOpts {
@@ -33,12 +34,18 @@ func (s SnailServerOpts) WithDefaults() SnailServerOpts {
 }
 
 func NewServer(
-	port int,
 	newHandlerFunc func() ServerConnHandler,
-	opts *SnailServerOpts,
+	optsPtr *SnailServerOpts,
 ) (*SnailServer, error) {
 
-	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	opts := func() SnailServerOpts {
+		if optsPtr == nil {
+			return SnailServerOpts{}
+		}
+		return *optsPtr
+	}().WithDefaults()
+
+	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.Port))
 	if err != nil {
 		return nil, err
 	}
@@ -46,12 +53,7 @@ func NewServer(
 	res := &SnailServer{
 		socket:         socket,
 		newHandlerFunc: newHandlerFunc,
-		opts: func() SnailServerOpts {
-			if opts == nil {
-				return SnailServerOpts{}
-			}
-			return *opts
-		}().WithDefaults(),
+		opts:           opts,
 	}
 
 	go res.Run()
