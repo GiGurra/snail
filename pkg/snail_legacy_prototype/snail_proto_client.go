@@ -3,7 +3,6 @@ package snail_legacy_prototype
 import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
-	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"log/slog"
 	"net"
 )
@@ -16,13 +15,13 @@ type CustomProtoClient struct {
 func NewCustomProtoClient(
 	ip string,
 	port int,
-	optimization custom_proto.OptimizationType,
+	optimization OptimizationType,
 ) (*CustomProtoClient, error) {
 	socket, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
 		return nil, err
 	}
-	if optimization == custom_proto.OptimizeForThroughput {
+	if optimization == OptimizeForThroughput {
 		err = socket.(*net.TCPConn).SetNoDelay(false) // we favor throughput over latency here. This gets us massive speedups. (300k msgs/s -> 1m)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY=false: %v. Proceeding anyway :S", err))

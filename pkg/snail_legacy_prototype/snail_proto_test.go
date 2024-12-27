@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
-	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"github.com/google/go-cmp/cmp"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
@@ -53,7 +52,7 @@ func TestNewCustomProtoListener(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
-	server, err := NewCustomProtoServer(0, custom_proto.OptimizeForThroughput)
+	server, err := NewCustomProtoServer(0, OptimizeForThroughput)
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
@@ -64,7 +63,7 @@ func TestNewCustomProtoListener(t *testing.T) {
 	}
 
 	slog.Info("Listener port", slog.Int("port", server.Port()))
-	client, err := NewCustomProtoClient("localhost", server.Port(), custom_proto.OptimizeForThroughput)
+	client, err := NewCustomProtoClient("localhost", server.Port(), OptimizeForThroughput)
 	if err != nil {
 		t.Fatalf("error creating client: %v", err)
 	}
@@ -106,7 +105,7 @@ func TestBenchMarkServerClientSingleThread(t *testing.T) {
 	slog.Info("****************************************")
 	slog.Info("Starting benchmark")
 
-	server, err := NewCustomProtoServer(0, custom_proto.OptimizeForThroughput)
+	server, err := NewCustomProtoServer(0, OptimizeForThroughput)
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
@@ -117,7 +116,7 @@ func TestBenchMarkServerClientSingleThread(t *testing.T) {
 	}
 
 	slog.Info("Listener port", slog.Int("port", server.Port()))
-	client, err := NewCustomProtoClient("localhost", server.Port(), custom_proto.OptimizeForThroughput)
+	client, err := NewCustomProtoClient("localhost", server.Port(), OptimizeForThroughput)
 	if err != nil {
 		t.Fatalf("error creating client: %v", err)
 	}
@@ -185,7 +184,7 @@ func TestBenchMarkServerClientSingleThreadBatch(t *testing.T) {
 	slog.Info("****************************************")
 	slog.Info("Starting benchmark")
 
-	server, err := NewCustomProtoServer(0, custom_proto.OptimizeForThroughput)
+	server, err := NewCustomProtoServer(0, OptimizeForThroughput)
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
@@ -196,7 +195,7 @@ func TestBenchMarkServerClientSingleThreadBatch(t *testing.T) {
 	}
 
 	slog.Info("Listener port", slog.Int("port", server.Port()))
-	client, err := NewCustomProtoClient("localhost", server.Port(), custom_proto.OptimizeForThroughput)
+	client, err := NewCustomProtoClient("localhost", server.Port(), OptimizeForThroughput)
 	if err != nil {
 		t.Fatalf("error creating client: %v", err)
 	}
@@ -275,7 +274,7 @@ func TestBenchMarkServerClientMultiThread(t *testing.T) {
 
 		slog.Info(fmt.Sprintf("Starting go routine %d, will send %d messages", i, nMessages))
 
-		server, err := NewCustomProtoServer(0, custom_proto.OptimizeForThroughput)
+		server, err := NewCustomProtoServer(0, OptimizeForThroughput)
 		if err != nil {
 			t.Fatalf("error creating server: %v", err)
 		}
@@ -286,7 +285,7 @@ func TestBenchMarkServerClientMultiThread(t *testing.T) {
 		}
 
 		slog.Info("Listener port", slog.Int("port", server.Port()))
-		client, err := NewCustomProtoClient("localhost", server.Port(), custom_proto.OptimizeForThroughput)
+		client, err := NewCustomProtoClient("localhost", server.Port(), OptimizeForThroughput)
 		if err != nil {
 			t.Fatalf("error creating client: %v", err)
 		}
@@ -360,7 +359,7 @@ func TestBenchMarkServerClientMultiThreadBatch(t *testing.T) {
 
 		slog.Info(fmt.Sprintf("Starting go routine %d, will send %d messages", i, nMessages))
 
-		server, err := NewCustomProtoServer(0, custom_proto.OptimizeForThroughput)
+		server, err := NewCustomProtoServer(0, OptimizeForThroughput)
 		if err != nil {
 			t.Fatalf("error creating server: %v", err)
 		}
@@ -371,7 +370,7 @@ func TestBenchMarkServerClientMultiThreadBatch(t *testing.T) {
 		}
 
 		slog.Info("Listener port", slog.Int("port", server.Port()))
-		client, err := NewCustomProtoClient("localhost", server.Port(), custom_proto.OptimizeForThroughput)
+		client, err := NewCustomProtoClient("localhost", server.Port(), OptimizeForThroughput)
 		if err != nil {
 			t.Fatalf("error creating client: %v", err)
 		}

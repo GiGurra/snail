@@ -4,20 +4,26 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
-	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"log/slog"
 	"net"
+)
+
+type OptimizationType int
+
+const (
+	OptimizeForLatency OptimizationType = iota
+	OptimizeForThroughput
 )
 
 type CustomProtoTestServer struct {
 	socket       net.Listener
 	recvCh       chan []CustomProtoMsg
-	optimization custom_proto.OptimizationType
+	optimization OptimizationType
 }
 
 func NewCustomProtoServer(
 	port int,
-	optimization custom_proto.OptimizationType,
+	optimization OptimizationType,
 ) (*CustomProtoTestServer, error) {
 	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -57,7 +63,7 @@ func (s *CustomProtoTestServer) Run() {
 			continue
 		}
 
-		if s.optimization == custom_proto.OptimizeForThroughput {
+		if s.optimization == OptimizeForThroughput {
 			err = conn.(*net.TCPConn).SetNoDelay(false) // we favor latency over throughput here.
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY=false: %v. Proceeding anyway :S", err))
