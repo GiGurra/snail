@@ -223,7 +223,7 @@ func (b *Buffer) SetReadPos(pos int) {
 	b.readPos = pos
 }
 
-func (b *Buffer) EnsureSpareBytes(n int) {
+func (b *Buffer) EnsureSpareCapacity(n int) {
 	if cap(b.buf)-len(b.buf) < n {
 		newBuf := make([]byte, len(b.buf), len(b.buf)+n)
 		copy(newBuf, b.buf)

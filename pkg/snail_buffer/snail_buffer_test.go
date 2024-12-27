@@ -371,7 +371,7 @@ func TestBuffer_EnsureSpareBytes(t *testing.T) {
 	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
-	bb.EnsureSpareBytes(10)
+	bb.EnsureSpareCapacity(10)
 	if cap(bb.buf) != 14 {
 		t.Errorf("Expected %v, got %v", 14, cap(bb.buf))
 	}
