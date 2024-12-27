@@ -276,7 +276,7 @@ func TestWriteAll_WriteReadJson(t *testing.T) {
 	}
 
 	if buffer.NumBytesReadable() != 128 {
-		t.Fatalf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 128 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	thirdObject := jsonTestStruct{Type: 44, Text: "test3", Bla: "bla3", Foo: "foo3", Bar: "bar3"}
