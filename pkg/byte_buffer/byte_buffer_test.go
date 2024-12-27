@@ -335,3 +335,34 @@ func TestByteBuffer_WriteReadAsIoWriterReaderBufferTooSmall(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 0, n)
 	}
 }
+
+func TestByteBuffer_DiscardReadBytes(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	bb.DiscardReadBytes() // a no-op since we haven't read anything
+	if bb.NumBytesReadable() != 4 {
+		t.Errorf("Expected %v, got %v", 4, bb.NumBytesReadable())
+	}
+
+	_, _ = bb.ReadInt16()
+	bb.DiscardReadBytes()
+	if bb.NumBytesReadable() != 2 {
+		t.Errorf("Expected %v, got %v", 2, bb.NumBytesReadable())
+	}
+
+	// read the rest
+	val, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+
+	if val != 0x5678 {
+		t.Errorf("Expected %v, got %v", 0x5678, val)
+	}
+
+	bb.DiscardReadBytes()
+	if bb.NumBytesReadable() != 0 {
+		t.Errorf("Expected %v, got %v", 0, bb.NumBytesReadable())
+	}
+}
