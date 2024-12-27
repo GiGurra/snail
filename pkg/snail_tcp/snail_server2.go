@@ -15,16 +15,16 @@ type ServerConnHandler func(*snail_buffer.Buffer, io.Writer) error
 type SnailServer2 struct {
 	socket         net.Listener
 	newHandlerFunc func() ServerConnHandler
-	opts           SnailServer2Opts
+	opts           SnailServerOpts
 }
 
-type SnailServer2Opts struct {
+type SnailServerOpts struct {
 	//MaxConnections int // TODO: implement support for this
 	Optimization OptimizationType
 	ReadBufSize  int
 }
 
-func (s SnailServer2Opts) WithDefaults() SnailServer2Opts {
+func (s SnailServerOpts) WithDefaults() SnailServerOpts {
 	res := s
 	if res.ReadBufSize == 0 {
 		res.ReadBufSize = 2048
@@ -35,7 +35,7 @@ func (s SnailServer2Opts) WithDefaults() SnailServer2Opts {
 func NewServer(
 	port int,
 	newHandlerFunc func() ServerConnHandler,
-	opts *SnailServer2Opts,
+	opts *SnailServerOpts,
 ) (*SnailServer2, error) {
 	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -45,9 +45,9 @@ func NewServer(
 	res := &SnailServer2{
 		socket:         socket,
 		newHandlerFunc: newHandlerFunc,
-		opts: func() SnailServer2Opts {
+		opts: func() SnailServerOpts {
 			if opts == nil {
-				return SnailServer2Opts{}
+				return SnailServerOpts{}
 			}
 			return *opts
 		}().WithDefaults(),
