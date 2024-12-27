@@ -39,6 +39,7 @@ func ParseAll[T any](
 			results = append(results, result.Value)
 		case ParseOneStatusNEB:
 			buffer.SetReadPos(bufferReadPosBefore)
+			buffer.DiscardReadBytes()
 			return results, nil
 		case ParseOneStatusInvalid:
 			return results, fmt.Errorf("failed to parse, stream corrupt: %w", result.Err)

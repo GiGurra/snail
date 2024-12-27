@@ -72,8 +72,11 @@ func TestParseAll(t *testing.T) {
 		t.Errorf("expected value 43, got %v", results[1])
 	}
 
-	if buffer.ReadPos() != 8 {
-		t.Errorf("expected read pos 8, got %v", buffer.ReadPos())
+	if buffer.NumBytesReadable() != 0 {
+		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+	if buffer.ReadPos() != 0 {
+		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
 
