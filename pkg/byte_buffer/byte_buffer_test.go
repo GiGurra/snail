@@ -279,3 +279,59 @@ func TestByteBuffer_WriteReadAsIoWriterReader(t *testing.T) {
 		t.Errorf("Expected EOF, got %v", err)
 	}
 }
+
+func TestByteBuffer_WriteReadAsIoWriterReaderBufferTooSmall(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	expected := []byte{0x12, 0x34, 0x56, 0x78}
+	val := make([]byte, 3)
+	n, err := bb.Read(val)
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+
+	if n != 3 {
+		t.Errorf("Expected %v, got %v", 3, n)
+	}
+
+	for i, b := range val {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+
+	if bb.NumBytesReadable() != 1 {
+		t.Errorf("Expected %v, got %v", 1, bb.NumBytesReadable())
+	}
+
+	// read the rest
+	n, err = bb.Read(val)
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+
+	if n != 1 {
+		t.Errorf("Expected %v, got %v", 1, n)
+	}
+
+	if val[0] != expected[3] {
+		t.Errorf("Expected %v, got %v", expected[3], val[0])
+	}
+
+	if bb.NumBytesReadable() != 0 {
+		t.Errorf("Expected %v, got %v", 0, bb.NumBytesReadable())
+	}
+
+	// Now should get EOF
+	n, err = bb.Read(val)
+	if err == nil {
+		t.Errorf("Expected EOF, got nil")
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("Expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("Expected %v, got %v", 0, n)
+	}
+}
