@@ -153,3 +153,103 @@ func TestWriteAll(t *testing.T) {
 		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
+
+const (
+	testStructMaxTextLen = 1024
+)
+
+type testStruct struct {
+	Type   int32
+	Strlen int32
+	Text   string
+}
+
+func testStructParser(buffer *snail_buffer.Buffer) ParseOneResult[testStruct] {
+	var res ParseOneResult[testStruct]
+	if buffer.NumBytesReadable() < 8 {
+		res.Status = ParseOneStatusNEB
+		return res
+	}
+	type_, err := buffer.ReadInt32()
+	if err != nil {
+		res.Status = ParseOneStatusInvalid
+		res.Err = fmt.Errorf("failed to parse type: %w", err)
+		return res
+	}
+	strlen, err := buffer.ReadInt32()
+	if err != nil {
+		res.Status = ParseOneStatusInvalid
+		res.Err = fmt.Errorf("failed to parse strlen: %w", err)
+		return res
+	}
+
+	if strlen > testStructMaxTextLen {
+		res.Status = ParseOneStatusInvalid
+		res.Err = fmt.Errorf("strlen too large: %v", strlen)
+		return res
+	}
+
+	if buffer.NumBytesReadable() < int(strlen) {
+		res.Status = ParseOneStatusNEB
+		return res
+	}
+	text, err := buffer.ReadString(int(strlen))
+	if err != nil {
+		res.Status = ParseOneStatusInvalid
+		res.Err = fmt.Errorf("failed to parse text: %w", err)
+		return res
+	}
+
+	return ParseOneResult[testStruct]{Value: testStruct{Type: type_, Strlen: strlen, Text: text}, Status: ParseOneStatusOK}
+}
+
+func testStructWriter(buffer *snail_buffer.Buffer, ts testStruct) error {
+
+	if len(ts.Text) > testStructMaxTextLen {
+		return fmt.Errorf("text too long: %v", len(ts.Text))
+	}
+
+	buffer.WriteInt32(ts.Type)
+	buffer.WriteInt32(ts.Strlen)
+	buffer.WriteString(ts.Text)
+	return nil
+}
+
+func TestWriteAll_WriteReadStructs(t *testing.T) {
+	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+	err := WriteAll(buffer, testStructWriter, []testStruct{
+		{Type: 42, Strlen: 4, Text: "test"},
+		{Type: 43, Strlen: 5, Text: "test2"},
+	})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if buffer.NumBytesReadable() != 25 {
+		t.Errorf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+
+	valuesBack, err := ParseAll(buffer, testStructParser)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(valuesBack) != 2 {
+		t.Errorf("expected 2 results, got %v", len(valuesBack))
+	}
+
+	if diff := cmp.Diff([]testStruct{
+		{Type: 42, Strlen: 4, Text: "test"},
+		{Type: 43, Strlen: 5, Text: "test2"},
+	}, valuesBack); diff != "" {
+		t.Errorf("unexpected results (-want +got):\n%s", diff)
+	}
+
+	if buffer.NumBytesReadable() != 0 {
+		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+
+	if buffer.ReadPos() != 0 {
+		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+	}
+}
