@@ -19,7 +19,7 @@ type ParseOneResult[T any] struct {
 	Err    error
 }
 
-func ParseOne[T any](
+func parseOne[T any](
 	buffer *snail_buffer.Buffer,
 	parseFunc func(buffer *snail_buffer.Buffer) ParseOneResult[T],
 ) ParseOneResult[T] {

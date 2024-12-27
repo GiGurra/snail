@@ -26,7 +26,7 @@ func TestParseOne(t *testing.T) {
 	buffer.WriteInt32(42)
 	buffer.WriteInt32(43)
 
-	result := ParseOne(buffer, IntParser)
+	result := parseOne(buffer, IntParser)
 	if result.Status != ParseOneStatusOK {
 		t.Errorf("expected status OK, got %v", result.Status)
 	}
@@ -35,7 +35,7 @@ func TestParseOne(t *testing.T) {
 		t.Errorf("expected value 42, got %v", result.Value)
 	}
 
-	result = ParseOne(buffer, IntParser)
+	result = parseOne(buffer, IntParser)
 	if result.Status != ParseOneStatusOK {
 		t.Errorf("expected status OK, got %v", result.Status)
 	}
@@ -44,7 +44,7 @@ func TestParseOne(t *testing.T) {
 		t.Errorf("expected value 43, got %v", result.Value)
 	}
 
-	result = ParseOne(buffer, IntParser)
+	result = parseOne(buffer, IntParser)
 	if result.Status != ParseOneStatusNEB {
 		t.Errorf("expected status NEB, got %v", result.Status)
 	}
