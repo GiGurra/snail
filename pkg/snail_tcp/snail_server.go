@@ -37,6 +37,7 @@ func NewServer(
 	newHandlerFunc func() ServerConnHandler,
 	opts *SnailServerOpts,
 ) (*SnailServer, error) {
+
 	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
