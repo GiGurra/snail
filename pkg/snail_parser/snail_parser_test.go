@@ -144,4 +144,12 @@ func TestWriteAll(t *testing.T) {
 	if diff := cmp.Diff([]int{42, 43}, valuesBack); diff != "" {
 		t.Errorf("unexpected results (-want +got):\n%s", diff)
 	}
+
+	if buffer.NumBytesReadable() != 0 {
+		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+
+	if buffer.ReadPos() != 0 {
+		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+	}
 }
