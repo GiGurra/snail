@@ -17,3 +17,87 @@ func TestNewByteBuffer(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 0, bb.readPosMark)
 	}
 }
+
+func TestByteBuffer_WriteInt32BigEndian(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt32(0x12345678)
+	expected := []byte{0x12, 0x34, 0x56, 0x78}
+	if len(bb.buf) != 4 {
+		t.Errorf("Expected %v, got %v", 4, len(bb.buf))
+	}
+	for i, b := range bb.buf {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+	val, err := bb.ReadInt32()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val != 0x12345678 {
+		t.Errorf("Expected %v, got %v", 0x12345678, val)
+	}
+}
+
+func TestByteBuffer_WriteInt32LittleEndian(t *testing.T) {
+	bb := NewByteBuffer(LittleEndian, 10)
+	bb.WriteInt32(0x12345678)
+	expected := []byte{0x78, 0x56, 0x34, 0x12}
+	if len(bb.buf) != 4 {
+		t.Errorf("Expected %v, got %v", 4, len(bb.buf))
+	}
+	for i, b := range bb.buf {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+	val, err := bb.ReadInt32()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val != 0x12345678 {
+		t.Errorf("Expected %v, got %v", 0x12345678, val)
+	}
+}
+
+func TestByteBuffer_ReadInt16BigEndian(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	expected := []byte{0x12, 0x34}
+	if len(bb.buf) != 2 {
+		t.Errorf("Expected %v, got %v", 2, len(bb.buf))
+	}
+	for i, b := range bb.buf {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+	val, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val != 0x1234 {
+		t.Errorf("Expected %v, got %v", 0x1234, val)
+	}
+}
+
+func TestByteBuffer_ReadInt16LittleEndian(t *testing.T) {
+	bb := NewByteBuffer(LittleEndian, 10)
+	bb.WriteInt16(0x1234)
+	expected := []byte{0x34, 0x12}
+	if len(bb.buf) != 2 {
+		t.Errorf("Expected %v, got %v", 2, len(bb.buf))
+	}
+	for i, b := range bb.buf {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+	val, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val != 0x1234 {
+		t.Errorf("Expected %v, got %v", 0x1234, val)
+	}
+}
