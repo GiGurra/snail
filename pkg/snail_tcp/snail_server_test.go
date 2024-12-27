@@ -28,7 +28,7 @@ func TestNewServer_sendMessageTpServer(t *testing.T) {
 		}
 	}
 
-	server, err := NewServer(0, newHandlerFunc, nil)
+	server, err := NewServer(newHandlerFunc, nil)
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
