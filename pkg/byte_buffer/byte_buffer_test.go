@@ -163,3 +163,26 @@ func TestByteBuffer_CanReadCorrectNum(t *testing.T) {
 		t.Errorf("Expected false, got true")
 	}
 }
+
+func TestByteBuffer_MarkResetReadPos(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	_, _ = bb.ReadInt16()
+	bb.MarkReadPos()
+	val1, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val1 != 0x5678 {
+		t.Errorf("Expected %v, got %v", 0x5678, val1)
+	}
+	bb.ResetReadPosToMark()
+	val2, err := bb.ReadInt16()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val2 != 0x5678 {
+		t.Errorf("Expected %v, got %v", 0x5678, val2)
+	}
+}
