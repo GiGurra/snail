@@ -207,7 +207,7 @@ func TestBenchMarkServerClientSingleThreadBatch(t *testing.T) {
 		batch := make([]CustomProtoMsg, 0, nBatchSize)
 		for i := 0; i < nMessages; i++ {
 			batch = append(batch, refMsg)
-			if len(batch) == nBatchSize {
+			if len(batch) == nBatchSize || i == nMessages-1 {
 				//slog.Info(fmt.Sprintf("Sending batch of %d messages", nBatchSize))
 				err = client.SendMsgs(batch)
 				if err != nil {
@@ -380,7 +380,7 @@ func TestBenchMarkServerClientMultiThreadBatch(t *testing.T) {
 			batch := make([]CustomProtoMsg, 0, nBatchSize)
 			for i := 0; i < nMessages; i++ {
 				batch = append(batch, refMsg)
-				if len(batch) == nBatchSize {
+				if len(batch) == nBatchSize || i == nMessages-1 {
 					//slog.Info(fmt.Sprintf("Sending batch of %d messages", nBatchSize))
 					err = client.SendMsgs(batch)
 					if err != nil {
