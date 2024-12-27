@@ -1,4 +1,4 @@
-package byte_buffer
+package snail_buffer
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewByteBuffer(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	if bb.endian != BigEndian {
 		t.Errorf("Expected %v, got %v", BigEndian, bb.endian)
 	}
@@ -23,7 +23,7 @@ func TestNewByteBuffer(t *testing.T) {
 }
 
 func TestByteBuffer_WriteInt32BigEndian(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt32(0x12345678)
 	expected := []byte{0x12, 0x34, 0x56, 0x78}
 	if len(bb.buf) != 4 {
@@ -44,7 +44,7 @@ func TestByteBuffer_WriteInt32BigEndian(t *testing.T) {
 }
 
 func TestByteBuffer_WriteInt32LittleEndian(t *testing.T) {
-	bb := NewByteBuffer(LittleEndian, 10)
+	bb := New(LittleEndian, 10)
 	bb.WriteInt32(0x12345678)
 	expected := []byte{0x78, 0x56, 0x34, 0x12}
 	if len(bb.buf) != 4 {
@@ -65,7 +65,7 @@ func TestByteBuffer_WriteInt32LittleEndian(t *testing.T) {
 }
 
 func TestByteBuffer_ReadInt16BigEndian(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	expected := []byte{0x12, 0x34}
 	if len(bb.buf) != 2 {
@@ -86,7 +86,7 @@ func TestByteBuffer_ReadInt16BigEndian(t *testing.T) {
 }
 
 func TestByteBuffer_ReadInt16LittleEndian(t *testing.T) {
-	bb := NewByteBuffer(LittleEndian, 10)
+	bb := New(LittleEndian, 10)
 	bb.WriteInt16(0x1234)
 	expected := []byte{0x34, 0x12}
 	if len(bb.buf) != 2 {
@@ -108,7 +108,7 @@ func TestByteBuffer_ReadInt16LittleEndian(t *testing.T) {
 
 func TestByteBuffer_CanRead(t *testing.T) {
 	// write Two consecutive int16 and read them
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
 	if !bb.CanRead(4) {
@@ -150,7 +150,7 @@ func TestByteBuffer_CanRead(t *testing.T) {
 
 func TestByteBuffer_CanReadCorrectNum(t *testing.T) {
 	// write 32 int32s
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	for i := 0; i < 32; i++ {
 		bb.WriteInt32(int32(i))
 	}
@@ -169,7 +169,7 @@ func TestByteBuffer_CanReadCorrectNum(t *testing.T) {
 }
 
 func TestByteBuffer_MarkResetReadPos(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
 	_, _ = bb.ReadInt16()
@@ -192,7 +192,7 @@ func TestByteBuffer_MarkResetReadPos(t *testing.T) {
 }
 
 func TestByteBuffer_ReadBytes(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
 	expected := []byte{0x12, 0x34, 0x56, 0x78}
@@ -220,7 +220,7 @@ func TestByteBuffer_ReadBytes(t *testing.T) {
 }
 
 func TestByteBuffer_ReadString(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteString("hello")
 	expected := "hello"
 	val, err := bb.ReadString(5)
@@ -249,7 +249,7 @@ func TestByteBuffer_ReadString(t *testing.T) {
 }
 
 func TestByteBuffer_WriteReadAsIoWriterReader(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
 	expected := []byte{0x12, 0x34, 0x56, 0x78}
@@ -281,7 +281,7 @@ func TestByteBuffer_WriteReadAsIoWriterReader(t *testing.T) {
 }
 
 func TestByteBuffer_WriteReadAsIoWriterReaderBufferTooSmall(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
 	expected := []byte{0x12, 0x34, 0x56, 0x78}
@@ -337,7 +337,7 @@ func TestByteBuffer_WriteReadAsIoWriterReaderBufferTooSmall(t *testing.T) {
 }
 
 func TestByteBuffer_DiscardReadBytes(t *testing.T) {
-	bb := NewByteBuffer(BigEndian, 10)
+	bb := New(BigEndian, 10)
 	bb.WriteInt16(0x1234)
 	bb.WriteInt16(0x5678)
 	bb.DiscardReadBytes() // a no-op since we haven't read anything

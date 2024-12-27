@@ -1,4 +1,4 @@
-package util_slice
+package snail_slice
 
 // DiscardFirstN discards the first n elements from a slice, but the same slice
 // is used. This should be used if we don't want a lot of 'dangling heads',

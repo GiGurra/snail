@@ -1,8 +1,8 @@
-package byte_buffer
+package snail_buffer
 
 import (
 	"fmt"
-	"github.com/GiGurra/snail/pkg/util_slice"
+	"github.com/GiGurra/snail/pkg/snail_slice"
 	"io"
 )
 
@@ -13,14 +13,14 @@ const (
 	LittleEndian Endian = iota
 )
 
-type ByteBuffer struct {
+type Buffer struct {
 	endian      Endian
 	buf         []byte
 	readPos     int
 	readPosMark int
 }
 
-func (b *ByteBuffer) Read(p []byte) (n int, err error) {
+func (b *Buffer) Read(p []byte) (n int, err error) {
 
 	numToRead := b.NumBytesReadable()
 
@@ -43,37 +43,37 @@ func (b *ByteBuffer) Read(p []byte) (n int, err error) {
 }
 
 // Write implements io.Writer
-func (b *ByteBuffer) Write(p []byte) (n int, err error) {
+func (b *Buffer) Write(p []byte) (n int, err error) {
 	b.buf = append(b.buf, p...)
 	return len(p), nil
 }
 
-// prove ByteBuffer implements io.Writer
-var _ io.Writer = &ByteBuffer{}
+// prove Buffer implements io.Writer
+var _ io.Writer = &Buffer{}
 
-// prove ByteBuffer implements io.Reader
-var _ io.Reader = &ByteBuffer{}
+// prove Buffer implements io.Reader
+var _ io.Reader = &Buffer{}
 
-func NewByteBuffer(endian Endian, size int) *ByteBuffer {
-	return &ByteBuffer{
+func New(endian Endian, size int) *Buffer {
+	return &Buffer{
 		endian: endian,
 		buf:    make([]byte, 0, size),
 	}
 }
 
-func (b *ByteBuffer) WriteBytes(val []byte) {
+func (b *Buffer) WriteBytes(val []byte) {
 	b.buf = append(b.buf, val...)
 }
 
-func (b *ByteBuffer) WriteString(val string) {
+func (b *Buffer) WriteString(val string) {
 	b.buf = append(b.buf, []byte(val)...)
 }
 
-func (b *ByteBuffer) WriteInt8(val int8) {
+func (b *Buffer) WriteInt8(val int8) {
 	b.buf = append(b.buf, byte(val))
 }
 
-func (b *ByteBuffer) WriteInt16(val int16) {
+func (b *Buffer) WriteInt16(val int16) {
 	if b.endian == BigEndian {
 		b.buf = append(b.buf, byte((val>>8)&0xFF))
 		b.buf = append(b.buf, byte(val&0xFF))
@@ -83,7 +83,7 @@ func (b *ByteBuffer) WriteInt16(val int16) {
 	}
 }
 
-func (b *ByteBuffer) ReadInt16() (int16, error) {
+func (b *Buffer) ReadInt16() (int16, error) {
 	if !b.CanRead(2) {
 		return 0, fmt.Errorf("not enough data to read int16")
 	}
@@ -98,7 +98,7 @@ func (b *ByteBuffer) ReadInt16() (int16, error) {
 	return val, nil
 }
 
-func (b *ByteBuffer) ReadSInt8() (int8, error) {
+func (b *Buffer) ReadSInt8() (int8, error) {
 	if !b.CanRead(1) {
 		return 0, fmt.Errorf("not enough data to read int8")
 	}
@@ -107,7 +107,7 @@ func (b *ByteBuffer) ReadSInt8() (int8, error) {
 	return val, nil
 }
 
-func (b *ByteBuffer) ReadUInt8() (uint8, error) {
+func (b *Buffer) ReadUInt8() (uint8, error) {
 	if !b.CanRead(1) {
 		return 0, fmt.Errorf("not enough data to read int8")
 	}
@@ -116,7 +116,7 @@ func (b *ByteBuffer) ReadUInt8() (uint8, error) {
 	return val, nil
 }
 
-func (b *ByteBuffer) ReadString(n int) (string, error) {
+func (b *Buffer) ReadString(n int) (string, error) {
 	if !b.CanRead(n) {
 		return "", fmt.Errorf("not enough data to read string")
 	}
@@ -125,7 +125,7 @@ func (b *ByteBuffer) ReadString(n int) (string, error) {
 	return val, nil
 }
 
-func (b *ByteBuffer) WriteInt32(val int32) {
+func (b *Buffer) WriteInt32(val int32) {
 	if b.endian == BigEndian {
 		b.buf = append(b.buf, byte((val>>24)&0xFF))
 		b.buf = append(b.buf, byte((val>>16)&0xFF))
@@ -139,15 +139,15 @@ func (b *ByteBuffer) WriteInt32(val int32) {
 	}
 }
 
-func (b *ByteBuffer) CanRead(n int) bool {
+func (b *Buffer) CanRead(n int) bool {
 	return b.Readable() >= n
 }
 
-func (b *ByteBuffer) Readable() int {
+func (b *Buffer) Readable() int {
 	return len(b.buf) - b.readPos
 }
 
-func (b *ByteBuffer) ReadInt32() (int32, error) {
+func (b *Buffer) ReadInt32() (int32, error) {
 	if !b.CanRead(4) {
 		return 0, fmt.Errorf("not enough data to read int32")
 	}
@@ -162,7 +162,7 @@ func (b *ByteBuffer) ReadInt32() (int32, error) {
 	return val, nil
 }
 
-func (b *ByteBuffer) ReadBytes(n int) ([]byte, error) {
+func (b *Buffer) ReadBytes(n int) ([]byte, error) {
 	if !b.CanRead(n) {
 		return nil, fmt.Errorf("not enough data to read bytes")
 	}
@@ -174,40 +174,40 @@ func (b *ByteBuffer) ReadBytes(n int) ([]byte, error) {
 	return cpy, nil
 }
 
-func (b *ByteBuffer) NumBytesReadable() int {
+func (b *Buffer) NumBytesReadable() int {
 	return len(b.buf) - b.readPos
 }
 
-func (b *ByteBuffer) DiscardReadBytes() {
-	b.buf = util_slice.DiscardFirstN(b.buf, b.readPos)
+func (b *Buffer) DiscardReadBytes() {
+	b.buf = snail_slice.DiscardFirstN(b.buf, b.readPos)
 	b.readPos = 0
 }
 
-func (b *ByteBuffer) WriteUInt8(u uint8) {
+func (b *Buffer) WriteUInt8(u uint8) {
 	b.buf = append(b.buf, u)
 }
 
-func (b *ByteBuffer) String() string {
-	return fmt.Sprintf("ByteBuffer{readPos: %d, size: %d}", b.readPos, len(b.buf))
+func (b *Buffer) String() string {
+	return fmt.Sprintf("Buffer{readPos: %d, size: %d}", b.readPos, len(b.buf))
 }
 
-func (b *ByteBuffer) Copy() []byte {
+func (b *Buffer) Copy() []byte {
 	return append([]byte{}, b.buf...)
 }
 
-func (b *ByteBuffer) Underlying() []byte {
+func (b *Buffer) Underlying() []byte {
 	return b.buf
 }
 
-func (b *ByteBuffer) MarkReadPos() {
+func (b *Buffer) MarkReadPos() {
 	b.readPosMark = b.readPos
 }
 
-func (b *ByteBuffer) ResetReadPosToMark() {
+func (b *Buffer) ResetReadPosToMark() {
 	b.readPos = b.readPosMark
 }
 
-func (b *ByteBuffer) Reset() {
+func (b *Buffer) Reset() {
 	b.readPos = 0
 	b.buf = b.buf[:0]
 }

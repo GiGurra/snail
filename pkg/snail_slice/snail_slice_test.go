@@ -1,4 +1,4 @@
-package util_slice
+package snail_slice
 
 import (
 	"github.com/google/go-cmp/cmp"
