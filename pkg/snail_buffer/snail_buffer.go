@@ -219,3 +219,19 @@ func (b *Buffer) ReadPos() int {
 func (b *Buffer) SetReadPos(pos int) {
 	b.readPos = pos
 }
+
+func (b *Buffer) EnsureSpareBytes(n int) {
+	if cap(b.buf)-len(b.buf) < n {
+		newBuf := make([]byte, len(b.buf), len(b.buf)+n)
+		copy(newBuf, b.buf)
+		b.buf = newBuf
+	}
+}
+
+func (b *Buffer) AddWritten(n int) {
+	b.buf = b.buf[:len(b.buf)+n]
+}
+
+func (b *Buffer) UnderlyingWriteable() []byte {
+	return b.buf[len(b.buf):cap(b.buf)]
+}

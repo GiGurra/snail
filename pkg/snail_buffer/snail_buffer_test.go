@@ -366,3 +366,40 @@ func TestByteBuffer_DiscardReadBytes(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 0, bb.NumBytesReadable())
 	}
 }
+
+func TestBuffer_EnsureSpareBytes(t *testing.T) {
+	bb := New(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	bb.EnsureSpareBytes(10)
+	if cap(bb.buf) != 14 {
+		t.Errorf("Expected %v, got %v", 14, cap(bb.buf))
+	}
+
+	if bb.NumBytesReadable() != 4 {
+		t.Errorf("Expected %v, got %v", 4, bb.NumBytesReadable())
+	}
+
+	if bb.ReadPos() != 0 {
+		t.Errorf("Expected %v, got %v", 0, bb.ReadPos())
+	}
+
+	val, err := bb.ReadInt32()
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+
+	if val != 0x12345678 {
+		t.Errorf("Expected %v, got %v", 0x12345678, val)
+	}
+
+	writeable := bb.UnderlyingWriteable()
+	if len(writeable) != 10 {
+		t.Errorf("Expected %v, got %v", 10, len(writeable))
+	}
+
+	// write 10 bytes
+	for i := 0; i < 10; i++ {
+		writeable[i] = byte(i)
+	}
+}
