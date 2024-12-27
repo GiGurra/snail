@@ -119,7 +119,6 @@ func (s *SnailServer) loopConn(conn net.Conn) {
 	for {
 
 		accumBuf.EnsureSpareCapacity(s.opts.ReadBufSize)
-
 		n, err := conn.Read(accumBuf.UnderlyingWriteable())
 		if err != nil {
 			// If EOF, it's a normal close
