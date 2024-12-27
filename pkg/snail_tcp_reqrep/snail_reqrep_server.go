@@ -2,6 +2,7 @@ package snail_tcp_reqrep
 
 import (
 	"fmt"
+	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
 )
 
@@ -14,11 +15,15 @@ type ServerConnHandler[Req any, Rep any] func(
 type SnailServer[Req any, Rep any] struct {
 	underlying     *snail_tcp.SnailServer
 	newHandlerFunc func() ServerConnHandler[Req, Rep]
+	parseFunc      snail_parser.ParseFunc[Req]
+	writeFunc      snail_parser.WriteFunc[Rep]
 }
 
 func NewServer[Req any, Rep any](
 	newHandlerFunc func() ServerConnHandler[Req, Rep],
 	tcpOpts *snail_tcp.SnailServerOpts,
+	parseFunc snail_parser.ParseFunc[Req],
+	writeFunc snail_parser.WriteFunc[Rep],
 ) (*SnailServer[Req, Rep], error) {
 
 	// TODO: Implement the handler func bridge and worker pool
@@ -31,6 +36,8 @@ func NewServer[Req any, Rep any](
 	return &SnailServer[Req, Rep]{
 		underlying:     underlying,
 		newHandlerFunc: newHandlerFunc,
+		parseFunc:      parseFunc,
+		writeFunc:      writeFunc,
 	}, nil
 }
 
