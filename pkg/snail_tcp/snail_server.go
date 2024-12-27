@@ -69,7 +69,7 @@ func (s *SnailServer) Run() {
 		if err != nil {
 			// if is socket closed, exit
 			if errors.Is(err, net.ErrClosed) {
-				slog.Debug("Server socket is closed, shutting down CustomProtoTestServer")
+				slog.Debug("Server socket is closed, shutting down server")
 				return
 			}
 			slog.Warn(fmt.Sprintf("Failed to accept connection: %v", err))
