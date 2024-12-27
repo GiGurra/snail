@@ -143,3 +143,23 @@ func TestByteBuffer_CanRead(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 0, bb.Readable())
 	}
 }
+
+func TestByteBuffer_CanReadCorrectNum(t *testing.T) {
+	// write 32 int32s
+	bb := NewByteBuffer(BigEndian, 10)
+	for i := 0; i < 32; i++ {
+		bb.WriteInt32(int32(i))
+	}
+	if !bb.CanRead(32 * 4) {
+		t.Errorf("Expected true, got false")
+	}
+	if bb.Readable() != 32*4 {
+		t.Errorf("Expected %v, got %v", 32*4, bb.Readable())
+	}
+	if !bb.CanRead(32*4 - 1) {
+		t.Errorf("Expected false, got true")
+	}
+	if bb.CanRead(32*4 + 1) {
+		t.Errorf("Expected false, got true")
+	}
+}

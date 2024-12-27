@@ -105,7 +105,7 @@ func (b *ByteBuffer) WriteInt32(val int32) {
 }
 
 func (b *ByteBuffer) CanRead(n int) bool {
-	return b.readPos+n <= len(b.buf)
+	return b.Readable() >= n
 }
 
 func (b *ByteBuffer) Readable() int {
