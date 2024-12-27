@@ -1,6 +1,7 @@
 package snail_parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/google/go-cmp/cmp"
@@ -33,25 +34,25 @@ func TestParseOne(t *testing.T) {
 
 	result := parseOne(buffer, IntParser)
 	if result.Status != ParseOneStatusOK {
-		t.Errorf("expected status OK, got %v", result.Status)
+		t.Fatalf("expected status OK, got %v", result.Status)
 	}
 
 	if result.Value != 42 {
-		t.Errorf("expected value 42, got %v", result.Value)
+		t.Fatalf("expected value 42, got %v", result.Value)
 	}
 
 	result = parseOne(buffer, IntParser)
 	if result.Status != ParseOneStatusOK {
-		t.Errorf("expected status OK, got %v", result.Status)
+		t.Fatalf("expected status OK, got %v", result.Status)
 	}
 
 	if result.Value != 43 {
-		t.Errorf("expected value 43, got %v", result.Value)
+		t.Fatalf("expected value 43, got %v", result.Value)
 	}
 
 	result = parseOne(buffer, IntParser)
 	if result.Status != ParseOneStatusNEB {
-		t.Errorf("expected status NEB, got %v", result.Status)
+		t.Fatalf("expected status NEB, got %v", result.Status)
 	}
 }
 
@@ -62,26 +63,26 @@ func TestParseAll(t *testing.T) {
 
 	results, err := ParseAll(buffer, IntParser)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(results) != 2 {
-		t.Errorf("expected 2 results, got %v", len(results))
+		t.Fatalf("expected 2 results, got %v", len(results))
 	}
 
 	if results[0] != 42 {
-		t.Errorf("expected value 42, got %v", results[0])
+		t.Fatalf("expected value 42, got %v", results[0])
 	}
 
 	if results[1] != 43 {
-		t.Errorf("expected value 43, got %v", results[1])
+		t.Fatalf("expected value 43, got %v", results[1])
 	}
 
 	if buffer.NumBytesReadable() != 0 {
-		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 	if buffer.ReadPos() != 0 {
-		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+		t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
 
@@ -91,15 +92,15 @@ func TestParseAll_Int32StreamedByteForByte(t *testing.T) {
 
 	results, err := ParseAll(buffer, IntParser)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(results) != 0 {
-		t.Errorf("expected 0 results, got %v", len(results))
+		t.Fatalf("expected 0 results, got %v", len(results))
 	}
 
 	if buffer.NumBytesReadable() != 1 {
-		t.Errorf("expected 1 byte readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 1 byte readable, got %v", buffer.NumBytesReadable())
 	}
 
 	buffer.WriteBytes([]byte{0})
@@ -108,15 +109,15 @@ func TestParseAll_Int32StreamedByteForByte(t *testing.T) {
 
 	results, err = ParseAll(buffer, IntParser)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(results) != 1 {
-		t.Errorf("expected 1 result, got %v", len(results))
+		t.Fatalf("expected 1 result, got %v", len(results))
 	}
 
 	if results[0] != 42 {
-		t.Errorf("expected value 42, got %v", results[0])
+		t.Fatalf("expected value 42, got %v", results[0])
 	}
 }
 
@@ -124,32 +125,32 @@ func TestWriteAll(t *testing.T) {
 	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
 	err := WriteAll(buffer, IntWriter, []int{42, 43})
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if buffer.NumBytesReadable() != 8 {
-		t.Errorf("expected 8 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 8 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	valuesBack, err := ParseAll(buffer, IntParser)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(valuesBack) != 2 {
-		t.Errorf("expected 2 results, got %v", len(valuesBack))
+		t.Fatalf("expected 2 results, got %v", len(valuesBack))
 	}
 
 	if diff := cmp.Diff([]int{42, 43}, valuesBack); diff != "" {
-		t.Errorf("unexpected results (-want +got):\n%s", diff)
+		t.Fatalf("unexpected results (-want +got):\n%s", diff)
 	}
 
 	if buffer.NumBytesReadable() != 0 {
-		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	if buffer.ReadPos() != 0 {
-		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+		t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
 
@@ -221,35 +222,35 @@ func TestWriteAll_WriteReadStructs(t *testing.T) {
 		{Type: 43, Strlen: 5, Text: "test2"},
 	})
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if buffer.NumBytesReadable() != 25 {
-		t.Errorf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	valuesBack, err := ParseAll(buffer, testStructParser)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(valuesBack) != 2 {
-		t.Errorf("expected 2 results, got %v", len(valuesBack))
+		t.Fatalf("expected 2 results, got %v", len(valuesBack))
 	}
 
 	if diff := cmp.Diff([]testStruct{
 		{Type: 42, Strlen: 4, Text: "test"},
 		{Type: 43, Strlen: 5, Text: "test2"},
 	}, valuesBack); diff != "" {
-		t.Errorf("unexpected results (-want +got):\n%s", diff)
+		t.Fatalf("unexpected results (-want +got):\n%s", diff)
 	}
 
 	if buffer.NumBytesReadable() != 0 {
-		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	if buffer.ReadPos() != 0 {
-		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+		t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
 
@@ -271,34 +272,62 @@ func TestWriteAll_WriteReadJson(t *testing.T) {
 		{Type: 43, Text: "test2", Bla: "bla2", Foo: "foo2", Bar: "bar2"},
 	})
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if buffer.NumBytesReadable() != 128 {
-		t.Errorf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
 	}
+
+	thirdObject := jsonTestStruct{Type: 44, Text: "test3", Bla: "bla3", Foo: "foo3", Bar: "bar3"}
+	thirdObjectBytes, err := json.Marshal(thirdObject)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	thirdObjectBytes = append(thirdObjectBytes, 0x0A)
+
+	// write the first half of the third object
+	buffer.WriteBytes(thirdObjectBytes[:len(thirdObjectBytes)/2])
 
 	valuesBack, err := ParseAll(buffer, codec.Parser)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(valuesBack) != 2 {
-		t.Errorf("expected 2 results, got %v", len(valuesBack))
+		t.Fatalf("expected 2 results, got %v", len(valuesBack))
 	}
 
 	if diff := cmp.Diff([]jsonTestStruct{
 		{Type: 42, Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"},
 		{Type: 43, Text: "test2", Bla: "bla2", Foo: "foo2", Bar: "bar2"},
 	}, valuesBack); diff != "" {
-		t.Errorf("unexpected results (-want +got):\n%s", diff)
+		t.Fatalf("unexpected results (-want +got):\n%s", diff)
+	}
+
+	// write the second half of the third object
+	buffer.WriteBytes(thirdObjectBytes[len(thirdObjectBytes)/2:])
+
+	valuesBack, err = ParseAll(buffer, codec.Parser)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(valuesBack) != 1 {
+		t.Fatalf("expected 1 result, got %v", len(valuesBack))
+	}
+
+	if diff := cmp.Diff([]jsonTestStruct{
+		{Type: 44, Text: "test3", Bla: "bla3", Foo: "foo3", Bar: "bar3"},
+	}, valuesBack); diff != "" {
+		t.Fatalf("unexpected results (-want +got):\n%s", diff)
 	}
 
 	if buffer.NumBytesReadable() != 0 {
-		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+		t.Fatalf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
 	}
 
 	if buffer.ReadPos() != 0 {
-		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+		t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
