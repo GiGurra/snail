@@ -82,7 +82,10 @@ func TestNewCustomProtoListener(t *testing.T) {
 	slog.Info("Sent message")
 
 	select {
-	case recvMsgs := <-server.RecvCh():
+	case recvMsgs, open := <-server.RecvCh():
+		if !open {
+			t.Fatalf("server recv channel closed")
+		}
 		for _, recvMsg := range recvMsgs {
 			if diff := cmp.Diff(msg, recvMsg); diff != "" {
 				t.Fatalf("msg mismatch (-want +got):\n%s", diff)
@@ -145,7 +148,10 @@ func TestBenchMarkServerClientSingleThread(t *testing.T) {
 	nMessagesReceived := 0
 	for nMessagesReceived < nMessages {
 		select {
-		case recvMsgs := <-server.RecvCh():
+		case recvMsgs, open := <-server.RecvCh():
+			if !open {
+				t.Fatalf("server recv channel closed")
+			}
 			for range recvMsgs {
 				//if diff := cmp.Diff(refMsg, recvMsg); diff != "" {
 				//	t.Fatalf("msg mismatch (-want +got):\n%s", diff)
