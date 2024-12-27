@@ -186,3 +186,60 @@ func TestByteBuffer_MarkResetReadPos(t *testing.T) {
 		t.Errorf("Expected %v, got %v", 0x5678, val2)
 	}
 }
+
+func TestByteBuffer_ReadBytes(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	expected := []byte{0x12, 0x34, 0x56, 0x78}
+	val, err := bb.ReadBytes(4)
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	for i, b := range val {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+
+	// reset and rewrite the buffer
+	bb.Reset()
+	bb.WriteInt16(0x5678)
+	bb.WriteInt16(0x1234)
+
+	// the already read back bytes should not be changes
+	for i, b := range val {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+}
+
+func TestByteBuffer_ReadString(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteString("hello")
+	expected := "hello"
+	val, err := bb.ReadString(5)
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val != expected {
+		t.Errorf("Expected %v, got %v", expected, val)
+	}
+
+	// reset and rewrite the buffer
+	bb.Reset()
+	bb.WriteString("world")
+	if val != expected {
+		t.Errorf("Expected %v, got %v", expected, val)
+	}
+
+	// read back the string
+	val, err = bb.ReadString(5)
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if val != "world" {
+		t.Errorf("Expected %v, got %v", "world", val)
+	}
+}

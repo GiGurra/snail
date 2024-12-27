@@ -127,6 +127,18 @@ func (b *ByteBuffer) ReadInt32() (int32, error) {
 	return val, nil
 }
 
+func (b *ByteBuffer) ReadBytes(n int) ([]byte, error) {
+	if !b.CanRead(n) {
+		return nil, fmt.Errorf("not enough data to read bytes")
+	}
+
+	cpy := make([]byte, n)
+	copy(cpy, b.buf[b.readPos:b.readPos+n])
+	b.readPos += n
+
+	return cpy, nil
+}
+
 func (b *ByteBuffer) NumBytesReadable() int {
 	return len(b.buf) - b.readPos
 }
