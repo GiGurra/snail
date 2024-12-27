@@ -22,7 +22,7 @@ func TestNewServer_sendMessageTpServer(t *testing.T) {
 				return nil
 			} else {
 				slog.Info("Handler received data")
-				recvCh <- buffer.ReadCopy()
+				recvCh <- buffer.ReadAll()
 				return nil
 			}
 		}
