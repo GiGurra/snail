@@ -211,3 +211,11 @@ func (b *Buffer) Reset() {
 	b.readPos = 0
 	b.buf = b.buf[:0]
 }
+
+func (b *Buffer) ReadPos() int {
+	return b.readPos
+}
+
+func (b *Buffer) SetReadPos(pos int) {
+	b.readPos = pos
+}

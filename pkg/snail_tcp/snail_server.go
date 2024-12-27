@@ -8,7 +8,7 @@ import (
 	"net"
 )
 
-type CustomProtoServer struct {
+type SnailServer struct {
 	socket       net.Listener
 	recvCh       chan []CustomProtoMsg
 	optimization OptimizationType
@@ -17,13 +17,13 @@ type CustomProtoServer struct {
 func NewCustomProtoServer(
 	port int,
 	optimization OptimizationType,
-) (*CustomProtoServer, error) {
+) (*SnailServer, error) {
 	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 
-	res := &CustomProtoServer{
+	res := &SnailServer{
 		socket:       socket,
 		recvCh:       make(chan []CustomProtoMsg, 1000000),
 		optimization: optimization,
@@ -34,22 +34,22 @@ func NewCustomProtoServer(
 	return res, nil
 }
 
-func (s *CustomProtoServer) RecvCh() <-chan []CustomProtoMsg {
+func (s *SnailServer) RecvCh() <-chan []CustomProtoMsg {
 	return s.recvCh
 }
 
-func (s *CustomProtoServer) Port() int {
+func (s *SnailServer) Port() int {
 	return s.socket.Addr().(*net.TCPAddr).Port
 }
 
-func (s *CustomProtoServer) Run() {
+func (s *SnailServer) Run() {
 	defer close(s.recvCh)
 	for {
 		conn, err := s.socket.Accept()
 		if err != nil {
 			// if is socket closed, exit
 			if errors.Is(err, net.ErrClosed) {
-				slog.Debug("Server socket is closed, shutting down CustomProtoServer")
+				slog.Debug("Server socket is closed, shutting down SnailServer")
 				return
 			}
 			slog.Warn(fmt.Sprintf("Failed to accept connection: %v", err))
@@ -73,14 +73,14 @@ func (s *CustomProtoServer) Run() {
 	}
 }
 
-func (s *CustomProtoServer) Close() {
+func (s *SnailServer) Close() {
 	err := s.socket.Close()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to close socket: %v", err))
 	}
 }
 
-func (s *CustomProtoServer) loopConn(conn net.Conn) {
+func (s *SnailServer) loopConn(conn net.Conn) {
 	// read all messages see https://stackoverflow.com/questions/51046139/reading-data-from-socket-golang
 	readBuf := make([]byte, 1024)
 	accumBuf := snail_buffer.New(snail_buffer.BigEndian, 1024)
