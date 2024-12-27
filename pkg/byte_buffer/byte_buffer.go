@@ -3,6 +3,7 @@ package byte_buffer
 import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/util_slice"
+	"io"
 )
 
 type Endian int
@@ -18,6 +19,40 @@ type ByteBuffer struct {
 	readPos     int
 	readPosMark int
 }
+
+func (b *ByteBuffer) Read(p []byte) (n int, err error) {
+
+	numReadable := b.NumBytesReadable()
+
+	// if there's no data to read, return EOF
+	if numReadable == 0 {
+		return 0, io.EOF
+	}
+
+	// if p fits in the buffer, copy it and return
+	if len(p) >= numReadable {
+		copy(p, b.buf[b.readPos:b.readPos+numReadable])
+		b.readPos += numReadable
+		return numReadable, nil // we chose not to return EOF here for consumer simplicity
+	}
+
+	// if p doesn't fit in the buffer, copy what we can and return
+	copy(p, b.buf[b.readPos:b.readPos+len(p)])
+	b.readPos += len(p)
+	return len(p), nil
+}
+
+// Write implements io.Writer
+func (b *ByteBuffer) Write(p []byte) (n int, err error) {
+	b.buf = append(b.buf, p...)
+	return len(p), nil
+}
+
+// prove ByteBuffer implements io.Writer
+var _ io.Writer = &ByteBuffer{}
+
+// prove ByteBuffer implements io.Reader
+var _ io.Reader = &ByteBuffer{}
 
 func NewByteBuffer(endian Endian, size int) *ByteBuffer {
 	return &ByteBuffer{
@@ -152,8 +187,8 @@ func (b *ByteBuffer) WriteUInt8(u uint8) {
 	b.buf = append(b.buf, u)
 }
 
-func (c *ByteBuffer) String() string {
-	return fmt.Sprintf("ByteBuffer{readPos: %d, size: %d}", c.readPos, len(c.buf))
+func (b *ByteBuffer) String() string {
+	return fmt.Sprintf("ByteBuffer{readPos: %d, size: %d}", b.readPos, len(b.buf))
 }
 
 func (b *ByteBuffer) Copy() []byte {

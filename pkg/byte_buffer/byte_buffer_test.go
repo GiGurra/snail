@@ -1,6 +1,10 @@
 package byte_buffer
 
-import "testing"
+import (
+	"errors"
+	"io"
+	"testing"
+)
 
 func TestNewByteBuffer(t *testing.T) {
 	bb := NewByteBuffer(BigEndian, 10)
@@ -241,5 +245,37 @@ func TestByteBuffer_ReadString(t *testing.T) {
 	}
 	if val != "world" {
 		t.Errorf("Expected %v, got %v", "world", val)
+	}
+}
+
+func TestByteBuffer_WriteReadAsIoWriterReader(t *testing.T) {
+	bb := NewByteBuffer(BigEndian, 10)
+	bb.WriteInt16(0x1234)
+	bb.WriteInt16(0x5678)
+	expected := []byte{0x12, 0x34, 0x56, 0x78}
+	val := make([]byte, 4)
+	n, err := bb.Read(val)
+	if err != nil {
+		t.Errorf("Expected nil, got %v", err)
+	}
+	if n != 4 {
+		t.Errorf("Expected %v, got %v", 4, n)
+	}
+	for i, b := range val {
+		if b != expected[i] {
+			t.Errorf("Expected %v, got %v", expected[i], b)
+		}
+	}
+	if bb.NumBytesReadable() != 0 {
+		t.Errorf("Expected %v, got %v", 0, bb.NumBytesReadable())
+	}
+
+	// reading again should return EOF
+	n, err = bb.Read(val)
+	if err == nil {
+		t.Errorf("Expected EOF, got nil")
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("Expected EOF, got %v", err)
 	}
 }
