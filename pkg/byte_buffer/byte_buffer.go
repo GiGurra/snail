@@ -22,24 +22,24 @@ type ByteBuffer struct {
 
 func (b *ByteBuffer) Read(p []byte) (n int, err error) {
 
-	numReadable := b.NumBytesReadable()
+	numToRead := b.NumBytesReadable()
 
 	// if there's no data to read, return EOF
-	if numReadable == 0 {
+	if numToRead == 0 {
 		return 0, io.EOF
 	}
 
-	// if p fits in the buffer, copy it and return
-	if len(p) >= numReadable {
-		copy(p, b.buf[b.readPos:b.readPos+numReadable])
-		b.readPos += numReadable
-		return numReadable, nil // we chose not to return EOF here for consumer simplicity
+	if len(p) < numToRead {
+		if len(p) == 0 {
+			return 0, fmt.Errorf("can't read into a zero-length buffer")
+		}
+		numToRead = len(p)
 	}
 
 	// if p doesn't fit in the buffer, copy what we can and return
-	copy(p, b.buf[b.readPos:b.readPos+len(p)])
-	b.readPos += len(p)
-	return len(p), nil
+	copy(p, b.buf[b.readPos:b.readPos+numToRead])
+	b.readPos += numToRead
+	return numToRead, nil
 }
 
 // Write implements io.Writer
