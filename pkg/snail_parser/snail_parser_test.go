@@ -71,4 +71,43 @@ func TestParseAll(t *testing.T) {
 	if results[1] != 43 {
 		t.Errorf("expected value 43, got %v", results[1])
 	}
+
+	if buffer.ReadPos() != 8 {
+		t.Errorf("expected read pos 8, got %v", buffer.ReadPos())
+	}
+}
+
+func TestParseAll_Int32StreamedByteForByte(t *testing.T) {
+	buffer := snail_buffer.New(snail_buffer.LittleEndian, 1024)
+	buffer.WriteBytes([]byte{42})
+
+	results, err := ParseAll(buffer, IntParser)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(results) != 0 {
+		t.Errorf("expected 0 results, got %v", len(results))
+	}
+
+	if buffer.NumBytesReadable() != 1 {
+		t.Errorf("expected 1 byte readable, got %v", buffer.NumBytesReadable())
+	}
+
+	buffer.WriteBytes([]byte{0})
+	buffer.WriteBytes([]byte{0})
+	buffer.WriteBytes([]byte{0})
+
+	results, err = ParseAll(buffer, IntParser)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(results) != 1 {
+		t.Errorf("expected 1 result, got %v", len(results))
+	}
+
+	if results[0] != 42 {
+		t.Errorf("expected value 42, got %v", results[0])
+	}
 }
