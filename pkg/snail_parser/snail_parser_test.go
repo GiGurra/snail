@@ -3,6 +3,7 @@ package snail_parser
 import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
+	"github.com/google/go-cmp/cmp"
 	"testing"
 )
 
@@ -19,6 +20,11 @@ func IntParser(buffer *snail_buffer.Buffer) ParseOneResult[int] {
 		return res
 	}
 	return ParseOneResult[int]{Value: int(i32), Status: ParseOneStatusOK}
+}
+
+func IntWriter(buffer *snail_buffer.Buffer, i int) error {
+	buffer.WriteInt32(int32(i))
+	return nil
 }
 
 func TestParseOne(t *testing.T) {
@@ -112,5 +118,30 @@ func TestParseAll_Int32StreamedByteForByte(t *testing.T) {
 
 	if results[0] != 42 {
 		t.Errorf("expected value 42, got %v", results[0])
+	}
+}
+
+func TestWriteAll(t *testing.T) {
+	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+	err := WriteAll(buffer, IntWriter, []int{42, 43})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if buffer.NumBytesReadable() != 8 {
+		t.Errorf("expected 8 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+
+	valuesBack, err := ParseAll(buffer, IntParser)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(valuesBack) != 2 {
+		t.Errorf("expected 2 results, got %v", len(valuesBack))
+	}
+
+	if diff := cmp.Diff([]int{42, 43}, valuesBack); diff != "" {
+		t.Errorf("unexpected results (-want +got):\n%s", diff)
 	}
 }
