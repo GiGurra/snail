@@ -209,6 +209,10 @@ func testStructWriter(buffer *snail_buffer.Buffer, ts testStruct) error {
 		return fmt.Errorf("text too long: %v", len(ts.Text))
 	}
 
+	if len(ts.Text) != int(ts.Strlen) {
+		return fmt.Errorf("strlen does not match text length: %v != %v", ts.Strlen, len(ts.Text))
+	}
+
 	buffer.WriteInt32(ts.Type)
 	buffer.WriteInt32(ts.Strlen)
 	buffer.WriteString(ts.Text)
