@@ -400,7 +400,10 @@ func TestBenchMarkServerClientMultiThreadBatch(t *testing.T) {
 		nMessagesReceived := 0
 		for nMessagesReceived < nMessages {
 			select {
-			case recvMsgs := <-server.RecvCh():
+			case recvMsgs, chOpen := <-server.RecvCh():
+				if !chOpen {
+					t.Fatalf("server recv channel closed")
+				}
 				for range recvMsgs {
 					//if diff := cmp.Diff(refMsg, recvMsg); diff != "" {
 					//	t.Fatalf("msg mismatch (-want +got):\n%s", diff)
