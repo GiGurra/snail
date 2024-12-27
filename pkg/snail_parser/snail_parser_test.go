@@ -252,3 +252,53 @@ func TestWriteAll_WriteReadStructs(t *testing.T) {
 		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
+
+type jsonTestStruct struct {
+	Type int32  `json:"type"`
+	Text string `json:"text"`
+	Bla  string `json:"bla"`
+	Foo  string `json:"foo"`
+	Bar  string `json:"bar"`
+}
+
+func TestWriteAll_WriteReadJson(t *testing.T) {
+
+	codec := NewJsonLinesCodec[jsonTestStruct]()
+
+	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+	err := WriteAll(buffer, codec.Writer, []jsonTestStruct{
+		{Type: 42, Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"},
+		{Type: 43, Text: "test2", Bla: "bla2", Foo: "foo2", Bar: "bar2"},
+	})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if buffer.NumBytesReadable() != 128 {
+		t.Errorf("expected 24 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+
+	valuesBack, err := ParseAll(buffer, codec.Parser)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(valuesBack) != 2 {
+		t.Errorf("expected 2 results, got %v", len(valuesBack))
+	}
+
+	if diff := cmp.Diff([]jsonTestStruct{
+		{Type: 42, Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"},
+		{Type: 43, Text: "test2", Bla: "bla2", Foo: "foo2", Bar: "bar2"},
+	}, valuesBack); diff != "" {
+		t.Errorf("unexpected results (-want +got):\n%s", diff)
+	}
+
+	if buffer.NumBytesReadable() != 0 {
+		t.Errorf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+	}
+
+	if buffer.ReadPos() != 0 {
+		t.Errorf("expected read pos 0, got %v", buffer.ReadPos())
+	}
+}

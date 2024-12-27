@@ -12,6 +12,14 @@ const (
 	ParseOneStatusNEB ParseOneStatus = iota
 )
 
+type ParseFunc[T any] func(buffer *snail_buffer.Buffer) ParseOneResult[T]
+type WriteFunc[T any] func(buffer *snail_buffer.Buffer, t T) error
+
+type Codec[T any] struct {
+	Parser ParseFunc[T]
+	Writer WriteFunc[T]
+}
+
 type ParseOneResult[T any] struct {
 	Value  T
 	Status ParseOneStatus
@@ -20,14 +28,14 @@ type ParseOneResult[T any] struct {
 
 func parseOne[T any](
 	buffer *snail_buffer.Buffer,
-	parseFunc func(buffer *snail_buffer.Buffer) ParseOneResult[T],
+	parseFunc ParseFunc[T],
 ) ParseOneResult[T] {
 	return parseFunc(buffer)
 }
 
 func ParseAll[T any](
 	buffer *snail_buffer.Buffer,
-	parseFunc func(*snail_buffer.Buffer) ParseOneResult[T],
+	parseFunc ParseFunc[T],
 ) ([]T, error) {
 	var results []T
 	for {
@@ -49,7 +57,7 @@ func ParseAll[T any](
 
 func WriteAll[T any](
 	buffer *snail_buffer.Buffer,
-	writeFunc func(buffer *snail_buffer.Buffer, t T) error,
+	writeFunc WriteFunc[T],
 	items []T,
 ) error {
 	for _, item := range items {

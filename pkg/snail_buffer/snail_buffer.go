@@ -187,6 +187,15 @@ func (b *Buffer) WriteUInt8(u uint8) {
 	b.buf = append(b.buf, u)
 }
 
+func (b *Buffer) WriteByte(u byte) error {
+	b.buf = append(b.buf, u)
+	return nil
+}
+
+func (b *Buffer) WriteByteNoE(u byte) {
+	b.buf = append(b.buf, u)
+}
+
 func (b *Buffer) String() string {
 	return fmt.Sprintf("Buffer{readPos: %d, size: %d}", b.readPos, len(b.buf))
 }
@@ -220,6 +229,9 @@ func (b *Buffer) ReadPos() int {
 }
 
 func (b *Buffer) SetReadPos(pos int) {
+	if pos < 0 || pos > len(b.buf) {
+		panic(fmt.Sprintf("invalid read pos: %d", pos))
+	}
 	b.readPos = pos
 }
 
