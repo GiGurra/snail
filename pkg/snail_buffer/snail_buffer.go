@@ -191,8 +191,12 @@ func (b *Buffer) String() string {
 	return fmt.Sprintf("Buffer{readPos: %d, size: %d}", b.readPos, len(b.buf))
 }
 
-func (b *Buffer) Copy() []byte {
+func (b *Buffer) WriteCopy() []byte {
 	return append([]byte{}, b.buf...)
+}
+
+func (b *Buffer) ReadCopy() []byte {
+	return append([]byte{}, b.buf[b.readPos:]...)
 }
 
 func (b *Buffer) Underlying() []byte {

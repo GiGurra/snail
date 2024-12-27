@@ -12,13 +12,6 @@ type CustomProtoClient struct {
 	sndBuf *snail_buffer.Buffer
 }
 
-type OptimizationType int
-
-const (
-	OptimizeForLatency OptimizationType = iota
-	OptimizeForThroughput
-)
-
 func NewCustomProtoClient(
 	ip string,
 	port int,

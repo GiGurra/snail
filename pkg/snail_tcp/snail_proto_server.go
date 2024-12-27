@@ -4,53 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
-	"io"
 	"log/slog"
 	"net"
 )
 
-// ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
-type ServerConnHandler func(*snail_buffer.Buffer, io.Writer) error
-
-type SnailServer struct {
-	socket         net.Listener
-	newHandlerFunc func() ServerConnHandler
-	opts           SnailServerOpts
+type CustomProtoTestServer struct {
+	socket       net.Listener
+	recvCh       chan []CustomProtoMsg
+	optimization OptimizationType
 }
 
-type SnailServerOpts struct {
-	//MaxConnections int // TODO: implement support for this
-	Optimization OptimizationType
-	ReadBufSize  int
-}
-
-func (s SnailServerOpts) WithDefaults() SnailServerOpts {
-	res := s
-	if res.ReadBufSize == 0 {
-		res.ReadBufSize = 2048
-	}
-	return res
-}
-
-func NewServer(
+func NewCustomProtoServer(
 	port int,
-	newHandlerFunc func() ServerConnHandler,
-	opts *SnailServerOpts,
-) (*SnailServer, error) {
+	optimization OptimizationType,
+) (*CustomProtoTestServer, error) {
 	socket, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, err
 	}
 
-	res := &SnailServer{
-		socket:         socket,
-		newHandlerFunc: newHandlerFunc,
-		opts: func() SnailServerOpts {
-			if opts == nil {
-				return SnailServerOpts{}
-			}
-			return *opts
-		}().WithDefaults(),
+	res := &CustomProtoTestServer{
+		socket:       socket,
+		recvCh:       make(chan []CustomProtoMsg, 1000000),
+		optimization: optimization,
 	}
 
 	go res.Run()
@@ -58,12 +34,16 @@ func NewServer(
 	return res, nil
 }
 
-func (s *SnailServer) Port() int {
+func (s *CustomProtoTestServer) RecvCh() <-chan []CustomProtoMsg {
+	return s.recvCh
+}
+
+func (s *CustomProtoTestServer) Port() int {
 	return s.socket.Addr().(*net.TCPAddr).Port
 }
 
-func (s *SnailServer) Run() {
-
+func (s *CustomProtoTestServer) Run() {
+	defer close(s.recvCh)
 	for {
 		conn, err := s.socket.Accept()
 		if err != nil {
@@ -76,7 +56,7 @@ func (s *SnailServer) Run() {
 			continue
 		}
 
-		if s.opts.Optimization == OptimizeForThroughput {
+		if s.optimization == OptimizeForThroughput {
 			err = conn.(*net.TCPConn).SetNoDelay(false) // we favor latency over throughput here.
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY=false: %v. Proceeding anyway :S", err))
@@ -93,34 +73,27 @@ func (s *SnailServer) Run() {
 	}
 }
 
-func (s *SnailServer) Close() {
+func (s *CustomProtoTestServer) Close() {
 	err := s.socket.Close()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to close socket: %v", err))
 	}
 }
 
-func (s *SnailServer) loopConn(conn net.Conn) {
+func (s *CustomProtoTestServer) loopConn(conn net.Conn) {
 	// read all messages see https://stackoverflow.com/questions/51046139/reading-data-from-socket-golang
-	accumBuf := snail_buffer.New(snail_buffer.BigEndian, s.opts.ReadBufSize)
-	handler := s.newHandlerFunc()
+	readBuf := make([]byte, 1024)
+	accumBuf := snail_buffer.New(snail_buffer.BigEndian, 1024)
 
 	giveUp := func() {
 		err := conn.Close()
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to close connection: %v", err))
 		}
-		err = handler(nil, nil)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to handle connection after close: %v", err))
-		}
 	}
 
 	for {
-
-		accumBuf.EnsureSpareBytes(s.opts.ReadBufSize)
-
-		n, err := conn.Read(accumBuf.UnderlyingWriteable())
+		n, err := conn.Read(readBuf)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to read from connection: %v", err))
 			giveUp()
@@ -131,15 +104,14 @@ func (s *SnailServer) loopConn(conn net.Conn) {
 			giveUp()
 			return
 		}
-		accumBuf.AddWritten(n)
-
 		slog.Debug(fmt.Sprintf("Read %d bytes", n))
-
-		err = handler(accumBuf, conn)
+		accumBuf.WriteBytes(readBuf[:n])
+		messages, err := TryReadMsgs(accumBuf)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to handle connection data: %v", err))
+			slog.Error(fmt.Sprintf("Failed to read messages: %v", err))
 			giveUp()
 			return
 		}
+		s.recvCh <- messages
 	}
 }
