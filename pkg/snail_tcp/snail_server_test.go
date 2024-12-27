@@ -11,7 +11,7 @@ import (
 
 func TestNewServer_sendMessageTpServer(t *testing.T) {
 
-	snail_logging.ConfigureDefaultLogger("json", "info", true)
+	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
 	recvCh := make(chan []byte)
 
