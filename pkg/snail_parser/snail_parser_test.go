@@ -49,3 +49,26 @@ func TestParseOne(t *testing.T) {
 		t.Errorf("expected status NEB, got %v", result.Status)
 	}
 }
+
+func TestParseAll(t *testing.T) {
+	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+	buffer.WriteInt32(42)
+	buffer.WriteInt32(43)
+
+	results, err := ParseAll(buffer, IntParser)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Errorf("expected 2 results, got %v", len(results))
+	}
+
+	if results[0] != 42 {
+		t.Errorf("expected value 42, got %v", results[0])
+	}
+
+	if results[1] != 43 {
+		t.Errorf("expected value 43, got %v", results[1])
+	}
+}
