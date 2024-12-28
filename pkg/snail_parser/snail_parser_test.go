@@ -490,6 +490,20 @@ func TestJsonParserPerformance_routines(t *testing.T) {
 				if res.Value.Type != int32(i) {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Type))
 				}
+				if res.Value.Text != "test" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Text))
+				}
+				if res.Value.Bla != "bla" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Bla))
+				}
+				if res.Value.Foo != "foo" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Foo))
+				}
+				if res.Value.Bar != "bar" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Bar))
+				}
+
+				buffer.Reset()
 			}
 			numReqs++
 		}
@@ -554,6 +568,7 @@ func TestCustomStructParserPerformance_routines(t *testing.T) {
 				if res.Value.Bar != "bar" {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Bar))
 				}
+				buffer.Reset()
 			}
 			numReqs++
 		}
@@ -617,6 +632,7 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 				if res.Value.ID != 12332 {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.ID))
 				}
+				buffer.Reset()
 			}
 			numReqs++
 		}
