@@ -7,6 +7,7 @@ import (
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -312,11 +313,14 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 
 	defer server.Close()
 
-	responseChans := make([]chan int32, nGoRoutines)
-	for i := 0; i < nGoRoutines; i++ {
-		responseChans[i] = make(chan int32, 100)
-	}
+	clients := make([]*SnailClient[int32, int32], nGoRoutines)
+	t0 := time.Now()
 
+	sums := make([]int64, nGoRoutines)
+	nReqResps := atomic.Int64{}
+
+	wgWriters := sync.WaitGroup{}
+	wgWriters.Add(nGoRoutines)
 	respHandler := func(resp int32, status ClientStatus) error {
 
 		if status == ClientStatusDisconnected {
@@ -324,14 +328,25 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 			return nil
 		}
 
-		//slog.Info("Client received response", slog.String("msg", resp.Msg))
-		responseChans[resp] <- resp
+		sums[resp] += 1
+
+		// continue the chain
+		client := clients[resp]
+		if time.Since(t0) < testLength {
+			err = client.Send(resp)
+			if err != nil {
+				panic(fmt.Errorf("error sending request: %v", err))
+			}
+		} else {
+			nReqResps.Add(sums[resp])
+			wgWriters.Done()
+			client.Close()
+			clients[resp] = nil
+		}
+
 		return nil
 	}
 
-	nReqResps := atomic.Int64{}
-
-	clients := make([]*SnailClient[int32, int32], nGoRoutines)
 	for i := 0; i < nGoRoutines; i++ {
 		client, err := NewClient[int32, int32](
 			"localhost",
@@ -349,34 +364,24 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 
 	defer func() {
 		for i := 0; i < nGoRoutines; i++ {
-			clients[i].Close()
+			if clients[i] != nil {
+				clients[i].Close()
+			}
 		}
 	}()
 
-	t0 := time.Now()
+	slog.Info("Starting chains")
+	t0 = time.Now()
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
-
 		client := clients[i]
-		nReqRespsThisRoutine := 0
-		for time.Since(t0) < testLength {
-
-			err = client.Send(int32(i))
-			if err != nil {
-				panic(fmt.Errorf("error sending request: %v", err))
-			}
-
-			select {
-			case resp := <-responseChans[i]:
-				if int(resp) != i {
-					panic(fmt.Errorf("expected response msg %d, got %d", i, resp))
-				}
-				nReqRespsThisRoutine++
-			case <-time.After(1 * time.Second):
-				panic(fmt.Errorf("timeout waiting for response"))
-			}
+		err = client.Send(int32(i))
+		if err != nil {
+			panic(fmt.Errorf("error sending request: %v", err))
 		}
-		nReqResps.Add(int64(nReqRespsThisRoutine))
 	})
+
+	slog.Info("Waiting for chains to finish")
+	wgWriters.Wait()
 
 	slog.Info("Sent and received", slog.Int64("nReqResps", nReqResps.Load()))
 
