@@ -304,7 +304,6 @@ func TestReferenceTcpPerf(t *testing.T) {
 	nClients := 16
 	testTime := 1 * time.Second
 	chunkSize := 512 * 1024
-	chunk := make([]byte, chunkSize)
 	readBufSize := 10 * chunkSize
 
 	// Create a server socket
@@ -357,9 +356,11 @@ func TestReferenceTcpPerf(t *testing.T) {
 		go func() {
 			defer wgRead.Done()
 			nReadThisConn := int64(0)
-			readBuf := make([]byte, readBufSize)
+			readBuf := snail_buffer.New(snail_buffer.BigEndian, readBufSize)
 			for {
-				n, err := conn.Read(readBuf)
+				//n, err := conn.Read(readBuf)
+				n, err := conn.Read(readBuf.UnderlyingWriteable())
+				readBuf.Reset()
 				if n > 0 {
 					nReadThisConn += int64(n)
 				}
@@ -384,8 +385,9 @@ func TestReferenceTcpPerf(t *testing.T) {
 	for _, conn := range clients {
 		wgWrite.Add(1)
 		go func() {
+			writeBuf := snail_buffer.New(snail_buffer.BigEndian, chunkSize)
 			for time.Since(t0) < testTime {
-				_, err := conn.Write(chunk)
+				_, err := conn.Write(writeBuf.UnderlyingWriteable())
 				if err != nil {
 					if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
 						slog.Debug("Connection is closed, shutting down client")
