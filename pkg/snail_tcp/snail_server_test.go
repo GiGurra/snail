@@ -412,20 +412,6 @@ func TestReferenceTcpPerf(t *testing.T) {
 					}
 				}
 
-				//bytes := writeBuf.UnderlyingWriteable()
-				//nWritten := 0
-				//for nWritten < len(bytes) {
-				//	n, err := conn.Write(bytes)
-				//	if err != nil {
-				//		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-				//			slog.Debug("Connection is closed, shutting down client")
-				//			return
-				//		} else {
-				//			panic(fmt.Errorf("error writing to connection: %w", err))
-				//		}
-				//	}
-				//	nWritten += n
-				//}
 			}
 			wgWrite.Done()
 		}()
