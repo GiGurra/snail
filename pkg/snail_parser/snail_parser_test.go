@@ -583,11 +583,6 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 	t0 := time.Now()
 	codec := newRequestTestStructCodec()
 
-	structData := requestTestStruct{
-		Header: 1241423151,
-		ID:     12332,
-	}
-
 	numReqsTot := atomic.Int64{}
 
 	sides := 1
@@ -600,7 +595,10 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 			for side := 0; side < sides; side++ {
 
 				// write
-				err := codec.Writer(buffer, structData)
+				err := codec.Writer(buffer, requestTestStruct{
+					Header: 1241423151,
+					ID:     12332,
+				})
 				if err != nil {
 					panic(fmt.Errorf("failed to encode int: %w", err))
 				}
@@ -613,10 +611,10 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 				if res.Err != nil {
 					panic(fmt.Errorf("failed to parse int: %w", res.Err))
 				}
-				if res.Value.Header != structData.Header {
+				if res.Value.Header != 1241423151 {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Header))
 				}
-				if res.Value.ID != structData.ID {
+				if res.Value.ID != 12332 {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.ID))
 				}
 			}
