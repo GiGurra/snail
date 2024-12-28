@@ -81,16 +81,17 @@ func newTcpServerConnHandler[Req any, Rep any](
 			}
 
 			// Write the response
-			start := writeBuffer.ReadPos()
 			bytes := writeBuffer.Underlying()
+			nTotal := len(bytes)
 			nWritten := 0
-			for nWritten < writeBuffer.Readable() {
-				n, err := writer.Write(bytes[start+nWritten:])
+			for nWritten < nTotal {
+				n, err := writer.Write(bytes[nWritten:])
 				if err != nil {
 					return fmt.Errorf("failed to write response: %w", err)
 				}
 				nWritten += n
 			}
+			writeBuffer.Reset()
 
 			return nil
 		}

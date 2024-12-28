@@ -220,8 +220,9 @@ func (b *Buffer) ResetReadPosToMark() {
 }
 
 func (b *Buffer) Reset() {
-	b.readPos = 0
 	b.buf = b.buf[:0]
+	b.readPos = 0
+	b.readPosMark = 0
 }
 
 func (b *Buffer) ReadPos() int {
