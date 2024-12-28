@@ -222,6 +222,8 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	slog.Info("Listener port", slog.Int("port", server.Port()))
 
+	slog.Info("Sending all bytes")
+
 	for i := 0; i < nGoRoutines; i++ {
 		go func() {
 
@@ -243,7 +245,6 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 				panic(fmt.Errorf("expected client, got nil"))
 			}
 
-			slog.Info("Sending all bytes")
 			for i := 0; i < nBatchesPerRoutine; i++ {
 				err = client.SendBytes(batch)
 				if err != nil {
