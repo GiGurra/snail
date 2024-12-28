@@ -7,25 +7,37 @@ import (
 )
 
 type SnailBatcher[T any] struct {
-	batcSize   int
+	batchSize  int
 	batch      []T
-	inputChan  chan T
-	closeChan  chan struct{}
+	inputChan  chan queueItem[T]
 	windowSize time.Duration
 	nextWindow time.Time
 	outputFunc func([]T) error
 }
 
+// Turns out it is faster just having everything in one queue/channel
+type queueItemType int
+
+const (
+	queueItemAdd queueItemType = iota
+	queueItemClose
+	queueItemFlush
+)
+
+type queueItem[T any] struct {
+	Item T
+	Type queueItemType
+}
+
 func NewSnailBatcher[T any](
 	windowSize time.Duration,
-	batcSize int,
+	batchSize int,
 	outputFunc func([]T) error,
 ) *SnailBatcher[T] {
 	res := &SnailBatcher[T]{
-		batcSize:   batcSize,
-		batch:      make([]T, 0, batcSize),
-		inputChan:  make(chan T, batcSize),
-		closeChan:  make(chan struct{}),
+		batchSize:  batchSize,
+		batch:      make([]T, 0, batchSize),
+		inputChan:  make(chan queueItem[T], batchSize*2),
 		windowSize: windowSize,
 		nextWindow: time.Now().Add(windowSize),
 		outputFunc: outputFunc,
@@ -36,33 +48,42 @@ func NewSnailBatcher[T any](
 	return res
 }
 
-func (sb *SnailBatcher[T]) InputChan() chan T {
-	return sb.inputChan
-}
-
 func (sb *SnailBatcher[T]) Add(item T) {
-	sb.inputChan <- item
+	sb.inputChan <- queueItem[T]{Item: item, Type: queueItemAdd}
 }
 
 func (sb *SnailBatcher[T]) Close() {
-	close(sb.closeChan)
+	sb.inputChan <- queueItem[T]{Type: queueItemClose}
 }
 
 func (sb *SnailBatcher[T]) workerLoop() {
+
+	ticker := time.NewTicker(sb.windowSize)
+	defer ticker.Stop()
+
+	// This isn't perfect, but it's FAST, really fast :)
+	go func() {
+		for range ticker.C {
+			sb.inputChan <- queueItem[T]{Type: queueItemFlush}
+		}
+	}()
+
 	for {
 		select {
-		case _, open := <-sb.closeChan:
-			if !open {
-				slog.Debug("snail batcher closed")
+		case item := <-sb.inputChan:
+			switch item.Type {
+			case queueItemAdd:
+				sb.batch = append(sb.batch, item.Item)
+				if len(sb.batch) >= sb.batchSize {
+					sb.flush()
+				}
+			case queueItemFlush:
+				sb.flush()
+			case queueItemClose:
+				sb.flush()
+				slog.Debug("closing batcher")
 				return
 			}
-		case item := <-sb.inputChan:
-			sb.batch = append(sb.batch, item)
-			if len(sb.batch) >= sb.batcSize {
-				sb.flush()
-			}
-		case <-time.After(sb.nextWindow.Sub(time.Now())):
-			sb.flush()
 		}
 	}
 }
