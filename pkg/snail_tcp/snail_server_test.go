@@ -171,7 +171,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	nGoRoutines := 16
 	nBatchesTotal := numTotalMessages / batchSize
 	nBatchesPerRoutine := nBatchesTotal / nGoRoutines
-	tcpWindowSize := 16 * 1024 * 1024 // 16 MB seems about right. Anything 64 kB or larger seems good.
+	tcpWindowSize := 512 * 1024 // Anything 64 kB or larger seems to have no effect. Below 64 kB performance drops quickly.
 
 	slog.Info("numTotalMessages", slog.Int("numTotalMessages", numTotalMessages))
 	slog.Info("batchSize", slog.Int("batchSize", batchSize))
