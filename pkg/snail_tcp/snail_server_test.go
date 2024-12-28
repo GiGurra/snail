@@ -195,7 +195,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	newHandlerFunc := func() ServerConnHandler {
 		return func(buffer *snail_buffer.Buffer, writer io.Writer) error {
 			if buffer == nil || writer == nil {
-				slog.Info("Closing connection")
+				slog.Debug("Closing connection")
 				return nil
 			} else {
 				atomicCounter.Add(int64(buffer.NumBytesReadable()))
