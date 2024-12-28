@@ -488,7 +488,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		client := clients[i]
 
 		batcher := snail_batcher.NewSnailBatcher[int32](
-			1*time.Minute,
+			1*time.Second,
 			batchSize,
 			func(values []int32) error {
 				return client.SendBatch(values)
@@ -516,7 +516,13 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	slog.Info("Waiting for chains to finish")
 	wgWriters.Wait()
 
-	slog.Info(fmt.Sprintf("Sent requests and received %v responses in %v", prettyInt3Digits(nReqResps.Load()), testLength))
+	elapsed := time.Since(t0)
+
+	slog.Info(fmt.Sprintf("Sent requests and received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsed))
+
+	rate := float64(nReqResps.Load()) / elapsed.Seconds()
+
+	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 
 }
 

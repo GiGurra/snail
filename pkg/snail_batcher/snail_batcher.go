@@ -3,16 +3,18 @@ package snail_batcher
 import (
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"time"
 )
 
 type SnailBatcher[T any] struct {
-	batchSize  int
-	batch      []T
-	inputChan  chan queueItem[T]
-	windowSize time.Duration
-	nextWindow time.Time
-	outputFunc func([]T) error
+	batchSize      int
+	batch          []T
+	HasPendingTick atomic.Bool
+	inputChan      chan queueItem[T]
+	windowSize     time.Duration
+	nextWindow     time.Time
+	outputFunc     func([]T) error
 }
 
 // Turns out it is faster just having everything in one queue/channel
@@ -21,7 +23,8 @@ type queueItemType int
 const (
 	queueItemAdd queueItemType = iota
 	queueItemClose
-	queueItemFlush
+	queueItemManualFlush
+	queueItemTicFlush
 )
 
 type queueItem[T any] struct {
@@ -53,7 +56,7 @@ func (sb *SnailBatcher[T]) Add(item T) {
 }
 
 func (sb *SnailBatcher[T]) Flush() {
-	sb.inputChan <- queueItem[T]{Type: queueItemFlush}
+	sb.inputChan <- queueItem[T]{Type: queueItemManualFlush}
 }
 
 func (sb *SnailBatcher[T]) Close() {
@@ -68,7 +71,10 @@ func (sb *SnailBatcher[T]) workerLoop() {
 	// This isn't perfect, but it's FAST, really fast :)
 	go func() {
 		for range ticker.C {
-			sb.inputChan <- queueItem[T]{Type: queueItemFlush}
+			if !sb.HasPendingTick.Load() {
+				sb.HasPendingTick.Store(true)
+				sb.inputChan <- queueItem[T]{Type: queueItemTicFlush}
+			}
 		}
 	}()
 
@@ -79,12 +85,14 @@ func (sb *SnailBatcher[T]) workerLoop() {
 			case queueItemAdd:
 				sb.batch = append(sb.batch, item.Item)
 				if len(sb.batch) >= sb.batchSize {
-					sb.flush()
+					sb.flush(false)
 				}
-			case queueItemFlush:
-				sb.flush()
+			case queueItemManualFlush:
+				sb.flush(false)
+			case queueItemTicFlush:
+				sb.flush(true)
 			case queueItemClose:
-				sb.flush()
+				sb.flush(false)
 				slog.Debug("closing batcher")
 				return
 			}
@@ -92,7 +100,11 @@ func (sb *SnailBatcher[T]) workerLoop() {
 	}
 }
 
-func (sb *SnailBatcher[T]) flush() {
+func (sb *SnailBatcher[T]) flush(isTick bool) {
+	if isTick {
+		defer sb.HasPendingTick.Store(false)
+	}
+
 	if len(sb.batch) == 0 {
 		return
 	}
