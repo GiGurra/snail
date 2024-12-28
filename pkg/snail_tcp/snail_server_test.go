@@ -1,6 +1,7 @@
 package snail_tcp
 
 import (
+	"errors"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -300,6 +302,10 @@ func prettyInt3Digits(n int64) string {
 func TestReferenceTcpPerf(t *testing.T) {
 	// This test is a reference test the golang tcp performance.
 	nClients := 16
+	testTime := 3 * time.Second
+	chunkSize := 512 * 1024
+	chunk := make([]byte, chunkSize)
+	readBufSize := 10 * chunkSize
 
 	// Create a server socket
 	socket, err := net.Listen("tcp", "localhost:0")
@@ -340,4 +346,74 @@ func TestReferenceTcpPerf(t *testing.T) {
 		}
 		accepted[i] = conn.(*net.TCPConn)
 	}
+
+	totalReadBytes := atomic.Int64{}
+
+	// Run all readers
+	slog.Info("Connections are accepted, setting up reader goroutines")
+	wgRead := sync.WaitGroup{}
+	for _, conn := range accepted {
+		wgRead.Add(1)
+		go func() {
+			defer wgRead.Done()
+			nReadThisConn := int64(0)
+			readBuf := make([]byte, readBufSize)
+			for {
+				n, err := conn.Read(readBuf)
+				if n > 0 {
+					nReadThisConn += int64(n)
+				}
+				if err != nil || n <= 0 {
+					totalReadBytes.Add(nReadThisConn)
+					if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+						slog.Debug("Connection is closed, shutting down accepted conn")
+						return
+					} else {
+						slog.Error(fmt.Sprintf("error reading from connection: %v", err))
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	// Run all writers
+	slog.Info("Starting test")
+	t0 := time.Now()
+	wgWrite := sync.WaitGroup{}
+	for _, conn := range clients {
+		wgWrite.Add(1)
+		go func() {
+			for time.Since(t0) < testTime {
+				_, err := conn.Write(chunk)
+				if err != nil {
+					if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+						slog.Debug("Connection is closed, shutting down client")
+						return
+					} else {
+						panic(fmt.Errorf("error writing to connection: %w", err))
+					}
+				}
+			}
+			wgWrite.Done()
+		}()
+	}
+
+	wgWrite.Wait()
+
+	// close all writers
+	for _, conn := range clients {
+		_ = conn.Close()
+	}
+
+	// wait for all readers to finish
+	wgRead.Wait()
+
+	slog.Info("Test done")
+
+	slog.Info(fmt.Sprintf("Total bytes written: %v", prettyInt3Digits(totalReadBytes.Load())))
+
+	rate := float64(totalReadBytes.Load()) / testTime.Seconds()
+
+	slog.Info(fmt.Sprintf("Rate: %v", prettyInt3Digits(int64(rate))))
 }
