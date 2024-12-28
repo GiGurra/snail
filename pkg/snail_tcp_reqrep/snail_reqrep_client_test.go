@@ -331,8 +331,8 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 
 	nReqResps := atomic.Int64{}
 
-	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
-
+	clients := make([]*SnailClient[int32, int32], nGoRoutines)
+	for i := 0; i < nGoRoutines; i++ {
 		client, err := NewClient[int32, int32](
 			"localhost",
 			server.Port(),
@@ -341,15 +341,23 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 			codec.Writer,
 			codec.Parser,
 		)
-
 		if err != nil {
 			t.Fatalf("error creating client: %v", err)
 		}
+		clients[i] = client
+	}
 
-		defer client.Close()
+	defer func() {
+		for i := 0; i < nGoRoutines; i++ {
+			clients[i].Close()
+		}
+	}()
 
+	t0 := time.Now()
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+		client := clients[i]
 		nReqRespsThisRoutine := 0
-		t0 := time.Now()
 		for time.Since(t0) < testLength {
 
 			err = client.Send(int32(i))
