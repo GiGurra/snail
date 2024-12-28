@@ -285,3 +285,42 @@ func (b *Buffer) UnderlyingReadableView() *Buffer {
 		readPosMark: 0,
 	}
 }
+
+func (b *Buffer) WriteInt64(value int64) {
+	if b.endian == BigEndian {
+		b.buf = append(b.buf, byte((value>>56)&0xFF))
+		b.buf = append(b.buf, byte((value>>48)&0xFF))
+		b.buf = append(b.buf, byte((value>>40)&0xFF))
+		b.buf = append(b.buf, byte((value>>32)&0xFF))
+		b.buf = append(b.buf, byte((value>>24)&0xFF))
+		b.buf = append(b.buf, byte((value>>16)&0xFF))
+		b.buf = append(b.buf, byte((value>>8)&0xFF))
+		b.buf = append(b.buf, byte(value&0xFF))
+	} else {
+		b.buf = append(b.buf, byte(value&0xFF))
+		b.buf = append(b.buf, byte((value>>8)&0xFF))
+		b.buf = append(b.buf, byte((value>>16)&0xFF))
+		b.buf = append(b.buf, byte((value>>24)&0xFF))
+		b.buf = append(b.buf, byte((value>>32)&0xFF))
+		b.buf = append(b.buf, byte((value>>40)&0xFF))
+		b.buf = append(b.buf, byte((value>>48)&0xFF))
+		b.buf = append(b.buf, byte((value>>56)&0xFF))
+	}
+}
+
+func (b *Buffer) ReadInt64() (int64, error) {
+	if !b.CanRead(8) {
+		return 0, fmt.Errorf("not enough data to read int64")
+	}
+
+	var val int64
+	if b.endian == BigEndian {
+		val = int64(b.buf[b.readPos])<<56 | int64(b.buf[b.readPos+1])<<48 | int64(b.buf[b.readPos+2])<<40 | int64(b.buf[b.readPos+3])<<32 | int64(b.buf[b.readPos+4])<<24 | int64(b.buf[b.readPos+5])<<16 | int64(b.buf[b.readPos+6])<<8 | int64(b.buf[b.readPos+7])
+	} else {
+		val = int64(b.buf[b.readPos]) | int64(b.buf[b.readPos+1])<<8 | int64(b.buf[b.readPos+2])<<16 | int64(b.buf[b.readPos+3])<<24 | int64(b.buf[b.readPos+4])<<32 | int64(b.buf[b.readPos+5])<<40 | int64(b.buf[b.readPos+6])<<48 | int64(b.buf[b.readPos+7])<<56
+	}
+
+	b.readPos += 8
+
+	return val, nil
+}

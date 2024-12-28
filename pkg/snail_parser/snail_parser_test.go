@@ -594,7 +594,8 @@ func TestCustomStructParserPerformance_routines(t *testing.T) {
 
 type requestTestStruct struct {
 	Header int32
-	ID     int16
+	ID1    int64
+	ID2    int64
 }
 
 func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
@@ -619,7 +620,8 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 				// write
 				err := codec.Writer(buffer, requestTestStruct{
 					Header: 1241423151,
-					ID:     12332,
+					ID1:    632457453734734573,
+					ID2:    144673457347347347,
 				})
 				if err != nil {
 					panic(fmt.Errorf("failed to encode int: %w", err))
@@ -636,8 +638,11 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 				if res.Value.Header != 1241423151 {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Header))
 				}
-				if res.Value.ID != 12332 {
-					panic(fmt.Errorf("unexpected value: %v", res.Value.ID))
+				if res.Value.ID1 != 632457453734734573 {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.ID1))
+				}
+				if res.Value.ID2 != 144673457347347347 {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.ID2))
 				}
 				buffer.Reset()
 			}
@@ -788,9 +793,14 @@ func newRequestTestStructCodec() Codec[requestTestStruct] {
 				return invalid(fmt.Errorf("failed to parse header: %w", err))
 			}
 
-			res.Value.ID, err = buffer.ReadInt16()
+			res.Value.ID1, err = buffer.ReadInt64()
 			if err != nil {
-				return invalid(fmt.Errorf("failed to parse ID: %w", err))
+				return invalid(fmt.Errorf("failed to parse id1: %w", err))
+			}
+
+			res.Value.ID2, err = buffer.ReadInt64()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse id2: %w", err))
 			}
 
 			res.Status = ParseOneStatusOK
@@ -800,7 +810,8 @@ func newRequestTestStructCodec() Codec[requestTestStruct] {
 		Writer: func(buffer *snail_buffer.Buffer, t requestTestStruct) error {
 
 			buffer.WriteInt32(t.Header)
-			buffer.WriteInt16(t.ID)
+			buffer.WriteInt64(t.ID1)
+			buffer.WriteInt64(t.ID2)
 
 			return nil
 		},
