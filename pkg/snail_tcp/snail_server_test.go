@@ -302,7 +302,7 @@ func prettyInt3Digits(n int64) string {
 func TestReferenceTcpPerf(t *testing.T) {
 	// This test is a reference test the golang tcp performance.
 	nClients := 16
-	testTime := 3 * time.Second
+	testTime := 1 * time.Second
 	chunkSize := 512 * 1024
 	chunk := make([]byte, chunkSize)
 	readBufSize := 10 * chunkSize
