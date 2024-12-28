@@ -349,7 +349,7 @@ func TestReferenceTcpPerf(t *testing.T) {
 			nReadThisConn := int64(0)
 			readBuf := snail_buffer.New(snail_buffer.BigEndian, readBufSize)
 			for {
-				//n, err := conn.Read(readBuf)
+				//n, err := conn.ReadToBuffer(readBuf)
 				n, err := conn.Read(readBuf.UnderlyingWriteable())
 				readBuf.Reset()
 				if n > 0 {

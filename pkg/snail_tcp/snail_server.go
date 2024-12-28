@@ -116,7 +116,7 @@ func (s *SnailServer) loopConnection(conn net.Conn) {
 	accumBuf := snail_buffer.New(snail_buffer.BigEndian, s.opts.ReadBufSize)
 	handler := s.newHandlerFunc()
 
-	giveUp := func() {
+	defer func() {
 		err := conn.Close()
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to close connection: %v", err))
@@ -125,35 +125,24 @@ func (s *SnailServer) loopConnection(conn net.Conn) {
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to handle connection after close: %v", err))
 		}
-	}
+	}()
 
 	for {
 
-		accumBuf.EnsureSpareCapacity(s.opts.ReadBufSize)
-		n, err := conn.Read(accumBuf.UnderlyingWriteable())
+		err := ReadToBuffer(s.opts.ReadBufSize, conn, accumBuf)
 		if err != nil {
-			// If EOF, it's a normal close
 			if errors.Is(err, io.EOF) {
 				slog.Debug("EOF, closing connection")
-				giveUp()
 				return
 			} else {
 				slog.Error(fmt.Sprintf("Failed to read from connection: %v", err))
-				giveUp()
 				return
 			}
 		}
-		if n <= 0 {
-			slog.Debug("No data read, closing connection")
-			giveUp()
-			return
-		}
-		accumBuf.AddWritten(n)
 
 		err = handler(accumBuf, conn)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to handle connection data: %v", err))
-			giveUp()
 			return
 		}
 		accumBuf.DiscardReadBytes()

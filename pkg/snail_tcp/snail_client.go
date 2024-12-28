@@ -100,8 +100,7 @@ func (c *SnailClient) loopRespListener() {
 
 		// TODO: Respect c.opts.MaxBufferedRespData
 
-		readBuffer.EnsureSpareCapacity(c.opts.ReadBufSize)
-		n, err := c.socket.Read(readBuffer.UnderlyingWriteable())
+		err := ReadToBuffer(c.opts.ReadBufSize, c.socket, readBuffer)
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				slog.Debug("Client socket is closed, shutting down client")
@@ -111,11 +110,6 @@ func (c *SnailClient) loopRespListener() {
 				return
 			}
 		}
-		if n <= 0 {
-			slog.Error(fmt.Sprintf("Failed to read bytes from socket, n <= 0, bailing"))
-			return
-		}
-		readBuffer.AddWritten(n)
 
 		err = c.respHandler(readBuffer)
 		if err != nil {
