@@ -94,7 +94,8 @@ func TestNewServer_send_1_GB(t *testing.T) {
 				slog.Info("Closing connection")
 				return nil
 			} else {
-				atomicCounter.Add(int64(len(buffer.ReadAll())))
+				atomicCounter.Add(int64(buffer.NumBytesReadable()))
+				buffer.Reset()
 				//slog.Info("Handler received data")
 				//for _, b := range buffer.ReadAll() {
 				//	recvCh <- b

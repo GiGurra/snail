@@ -56,7 +56,7 @@ func NewServer(
 		opts:           opts,
 	}
 
-	go res.Run()
+	go res.loopConnections()
 
 	return res, nil
 }
@@ -65,7 +65,7 @@ func (s *SnailServer) Port() int {
 	return s.socket.Addr().(*net.TCPAddr).Port
 }
 
-func (s *SnailServer) Run() {
+func (s *SnailServer) loopConnections() {
 
 	for {
 		conn, err := s.socket.Accept()
@@ -92,7 +92,7 @@ func (s *SnailServer) Run() {
 		}
 
 		slog.Debug("Accepted connection", slog.String("remote_addr", conn.RemoteAddr().String()))
-		go s.loopConn(conn)
+		go s.loopConnection(conn)
 	}
 }
 
@@ -103,7 +103,7 @@ func (s *SnailServer) Close() {
 	}
 }
 
-func (s *SnailServer) loopConn(conn net.Conn) {
+func (s *SnailServer) loopConnection(conn net.Conn) {
 	// read all messages see https://stackoverflow.com/questions/51046139/reading-data-from-socket-golang
 	accumBuf := snail_buffer.New(snail_buffer.BigEndian, s.opts.ReadBufSize)
 	handler := s.newHandlerFunc()
