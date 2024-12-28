@@ -52,6 +52,10 @@ func (sb *SnailBatcher[T]) Add(item T) {
 	sb.inputChan <- queueItem[T]{Item: item, Type: queueItemAdd}
 }
 
+func (sb *SnailBatcher[T]) Flush() {
+	sb.inputChan <- queueItem[T]{Type: queueItemFlush}
+}
+
 func (sb *SnailBatcher[T]) Close() {
 	sb.inputChan <- queueItem[T]{Type: queueItemClose}
 }

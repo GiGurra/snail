@@ -2,8 +2,10 @@ package snail_tcp_reqrep
 
 import (
 	"fmt"
+	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_parser"
+	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
@@ -396,6 +398,8 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 
 	testLength := 1 * time.Second
 	nGoRoutines := 512
+	batchSize := 100
+	optimization := snail_tcp.OptimizeForThroughput
 
 	codec := snail_parser.NewInt32Codec()
 
@@ -412,7 +416,9 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 				return repFunc(req)
 			}
 		},
-		nil,
+		&snail_tcp.SnailServerOpts{
+			Optimization: optimization,
+		},
 		codec.Parser,
 		codec.Writer,
 	)
@@ -455,7 +461,9 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		client, err := NewClient[int32, int32](
 			"localhost",
 			server.Port(),
-			nil,
+			&snail_tcp.SnailClientOpts{
+				Optimization: optimization,
+			},
 			respHandler,
 			codec.Writer,
 			codec.Parser,
@@ -474,20 +482,36 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		}
 	}()
 
-	slog.Info("Starting chains")
-	//t0 := time.Now()
+	slog.Info("Creating batchers")
+	batchers := make([]*snail_batcher.SnailBatcher[int32], nGoRoutines)
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
-		err = client.Send(int32(i))
-		if err != nil {
-			panic(fmt.Errorf("error sending request: %v", err))
-		}
 
-		err = client.Send(int32(-i - 1))
-		if err != nil {
-			panic(fmt.Errorf("error sending request: %v", err))
-		}
+		batcher := snail_batcher.NewSnailBatcher[int32](
+			1*time.Minute,
+			batchSize,
+			func(values []int32) error {
+				return client.SendBatch(values)
+			},
+		)
+		batchers[i] = batcher
 	})
+
+	slog.Info("Starting senders")
+	t0 := time.Now()
+	go func() {
+		lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+			batcher := batchers[i]
+
+			for time.Since(t0) < testLength {
+				batcher.Add(int32(i))
+			}
+
+			batcher.Add(int32(-i - 1)) // Signal that this client is done
+			batcher.Flush()
+		})
+	}()
 
 	slog.Info("Waiting for chains to finish")
 	wgWriters.Wait()
