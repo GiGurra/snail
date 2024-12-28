@@ -116,10 +116,15 @@ func TestNewServer_send_1_GB(t *testing.T) {
 	}
 
 	slog.Info("Listener port", slog.Int("port", server.Port()))
-	client, err := NewClient("localhost", server.Port(), nil, func(buffer *snail_buffer.Buffer) error {
-		slog.Info("Client received data")
-		return nil
-	})
+	client, err := NewClient(
+		"localhost",
+		server.Port(),
+		nil,
+		func(buffer *snail_buffer.Buffer) error {
+			slog.Error("Client received response data, should not happen in this test")
+			return nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("error creating client: %v", err)
 	}
