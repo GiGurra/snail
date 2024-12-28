@@ -70,7 +70,7 @@ func TestNewServer_sendMessageTpServer(t *testing.T) {
 
 }
 
-func TestNewServer_send1mBytes(t *testing.T) {
+func TestNewServer_send10mBytes_oneByOne(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
