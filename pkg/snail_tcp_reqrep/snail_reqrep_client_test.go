@@ -12,12 +12,12 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 
 	slog.Info("TestNewServer_SendAndRespondWithJson")
 
-	reqCodec := snail_parser.NewJsonLinesCodec[requestStruct]()
-	respCodec := snail_parser.NewJsonLinesCodec[responseStruct]()
+	reqCodec := snail_parser.NewJsonLinesCodec[*requestStruct]()
+	respCodec := snail_parser.NewJsonLinesCodec[*responseStruct]()
 
-	server, err := NewServer[requestStruct, responseStruct](
-		func() ServerConnHandler[requestStruct, responseStruct] {
-			return func(req requestStruct, repFunc func(resp responseStruct) error) error {
+	server, err := NewServer[*requestStruct, *responseStruct](
+		func() ServerConnHandler[*requestStruct, *responseStruct] {
+			return func(req *requestStruct, repFunc func(resp *responseStruct) error) error {
 
 				if repFunc == nil {
 					slog.Warn("Client disconnected")
@@ -25,7 +25,7 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 				}
 
 				slog.Info("Server received request", slog.String("msg", req.Msg))
-				return repFunc(responseStruct{Msg: "Hello from server"})
+				return repFunc(&responseStruct{Msg: "Hello from server"})
 			}
 		},
 		nil,
@@ -43,12 +43,12 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 
 	defer server.Close()
 
-	respHandler := func(resp responseStruct) error {
+	respHandler := func(resp *responseStruct) error {
 		slog.Info("Client received response", slog.String("msg", resp.Msg))
 		return nil
 	}
 
-	client, err := NewClient[requestStruct, responseStruct](
+	client, err := NewClient[*requestStruct, *responseStruct](
 		"localhost",
 		server.Port(),
 		nil,
