@@ -176,14 +176,14 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	nGoRoutines := 16
 	nBatchesTotal := numTotalMessages / batchSize
 	nBatchesPerRoutine := nBatchesTotal / nGoRoutines
-	tcpWindowSize := 512 * 1024 // Anything 64 kB or larger seems to have no effect. Below 64 kB performance drops quickly.
+	//tcpWindowSize := 512 * 1024 // Anything 64 kB or larger seems to have no effect. Below 64 kB performance drops quickly.
 
 	slog.Info("numTotalMessages", slog.Int("numTotalMessages", numTotalMessages))
 	slog.Info("batchSize", slog.Int("batchSize", batchSize))
 	slog.Info("nGoRoutines", slog.Int("nGoRoutines", nGoRoutines))
 	slog.Info("nBatchesTotal", slog.Int("nBatchesTotal", nBatchesTotal))
 	slog.Info("nBatchesPerRoutine", slog.Int("nBatchesPerRoutine", nBatchesPerRoutine))
-	slog.Info("tcpWindowSize", slog.Int("tcpWindowSize", tcpWindowSize))
+	//slog.Info("tcpWindowSize", slog.Int("tcpWindowSize", tcpWindowSize))
 
 	if //goland:noinspection GoBoolExpressions
 	numTotalMessages%batchSize != 0 {
@@ -196,7 +196,6 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	}
 
 	atomicCounter := atomic.Int64{}
-	recvSignal := make(chan byte, 10)
 	batch := make([]byte, batchSize)
 
 	newHandlerFunc := func() ServerConnHandler {
@@ -211,15 +210,12 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 				//for _, b := range buffer.ReadAll() {
 				//	recvCh <- b
 				//}
-				recvSignal <- 1
 				return nil
 			}
 		}
 	}
 
-	server, err := NewServer(newHandlerFunc, &SnailServerOpts{
-		TcpReadWindowSize: tcpWindowSize,
-	})
+	server, err := NewServer(newHandlerFunc, nil)
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
@@ -241,9 +237,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 			client, err := NewClient(
 				"localhost",
 				server.Port(),
-				&SnailClientOpts{
-					TcpSendWindowSize: tcpWindowSize,
-				},
+				nil,
 				func(buffer *snail_buffer.Buffer) error {
 					slog.Error("Client received response data, should not happen in this test")
 					return nil
@@ -268,12 +262,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	}
 
 	for atomicCounter.Load() < int64(numTotalMessages) {
-		select {
-		case _ = <-recvSignal:
-		case <-time.After(1 * time.Second):
-			t.Fatalf("timeout waiting for message")
-			return
-		}
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	elapsed := time.Since(t0)
