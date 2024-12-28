@@ -60,25 +60,43 @@ func newTcpServerConnHandler[Req any, Rep any](
 ) snail_tcp.ServerConnHandler {
 
 	handler := newHandlerFunc()
+	writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
 
-	tcpHandler := func(buffer *snail_buffer.Buffer, writer io.Writer) error {
+	tcpHandler := func(readBuffer *snail_buffer.Buffer, writer io.Writer) error {
 
-		if buffer == nil || writer == nil {
+		if readBuffer == nil || writer == nil {
 			return handler(nil, nil)
 		}
 
-		reqs, err := snail_parser.ParseAll[Req](buffer, parseFunc)
+		reqs, err := snail_parser.ParseAll[Req](readBuffer, parseFunc)
 		if err != nil {
 			return fmt.Errorf("failed to parse requests: %w", err)
 		}
 
-		for _, req := range reqs {
-			if err := handler(&req, func(rep *Rep) error {
-				if err := writeFunc(buffer, *rep); err != nil {
+		// TODO: Handle multi threading for the response :S
+		// channels? Something else?
+		writeRespFunc := func(rep *Rep) error {
+			if err := writeFunc(writeBuffer, *rep); err != nil {
+				return fmt.Errorf("failed to write response: %w", err)
+			}
+
+			// Write the response
+			start := writeBuffer.ReadPos()
+			bytes := writeBuffer.Underlying()
+			nWritten := 0
+			for nWritten < writeBuffer.Readable() {
+				n, err := writer.Write(bytes[start+nWritten:])
+				if err != nil {
 					return fmt.Errorf("failed to write response: %w", err)
 				}
-				return nil
-			}); err != nil {
+				nWritten += n
+			}
+
+			return nil
+		}
+
+		for _, req := range reqs {
+			if err := handler(&req, writeRespFunc); err != nil {
 				return fmt.Errorf("failed to handle request: %w", err)
 			}
 		}
