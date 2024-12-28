@@ -316,20 +316,47 @@ func TestReferenceTcpPerf(t *testing.T) {
 	port := socket.Addr().(*net.TCPAddr).Port
 
 	slog.Info("Listener port", slog.Int("port", port))
-
+	//
+	//// create clients
+	//clients := make([]*net.TCPConn, nClients)
+	//for i := 0; i < nClients; i++ {
+	//	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+	//	if err != nil {
+	//		t.Fatalf("error creating client: %v", err)
+	//	}
+	//	clients[i] = conn.(*net.TCPConn)
+	//}
+	//defer func() {
+	//	for _, conn := range clients {
+	//		if conn != nil {
+	//			_ = conn.Close()
+	//		}
+	//	}
+	//}()
 	// create clients
-	clients := make([]*net.TCPConn, nClients)
+	clients := make([]*SnailClient, nClients)
 	for i := 0; i < nClients; i++ {
-		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+		client, err := NewClient(
+			"localhost",
+			port,
+			//&SnailClientOpts{
+			//	TcpSendWindowSize: tcpWindowSize,
+			//},
+			nil,
+			func(buffer *snail_buffer.Buffer) error {
+				slog.Error("Client received response data, should not happen in this test")
+				return nil
+			},
+		)
 		if err != nil {
-			t.Fatalf("error creating client: %v", err)
+			panic(fmt.Errorf("error creating client: %w", err))
 		}
-		clients[i] = conn.(*net.TCPConn)
+		clients[i] = client
 	}
 	defer func() {
 		for _, conn := range clients {
 			if conn != nil {
-				_ = conn.Close()
+				conn.Close()
 			}
 		}
 	}()
@@ -382,25 +409,42 @@ func TestReferenceTcpPerf(t *testing.T) {
 	slog.Info("Starting test")
 	t0 := time.Now()
 	wgWrite := sync.WaitGroup{}
-	for _, conn := range clients {
+	for _, client := range clients {
 		wgWrite.Add(1)
 		go func() {
+
 			writeBuf := snail_buffer.New(snail_buffer.BigEndian, chunkSize)
 			for time.Since(t0) < testTime {
-				bytes := writeBuf.UnderlyingWriteable()
-				nWritten := 0
-				for nWritten < len(bytes) {
-					n, err := conn.Write(bytes)
-					if err != nil {
-						if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-							slog.Debug("Connection is closed, shutting down client")
-							return
-						} else {
-							panic(fmt.Errorf("error writing to connection: %w", err))
-						}
-					}
-					nWritten += n
+
+				if client == nil {
+					panic(fmt.Errorf("expected client, got nil"))
 				}
+
+				bytes := writeBuf.UnderlyingWriteable()
+				err = client.SendBytes(bytes)
+				if err != nil {
+					if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+						slog.Debug("Connection is closed, shutting down client")
+						return
+					} else {
+						panic(fmt.Errorf("error writing to connection: %w", err))
+					}
+				}
+
+				//bytes := writeBuf.UnderlyingWriteable()
+				//nWritten := 0
+				//for nWritten < len(bytes) {
+				//	n, err := conn.Write(bytes)
+				//	if err != nil {
+				//		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				//			slog.Debug("Connection is closed, shutting down client")
+				//			return
+				//		} else {
+				//			panic(fmt.Errorf("error writing to connection: %w", err))
+				//		}
+				//	}
+				//	nWritten += n
+				//}
 			}
 			wgWrite.Done()
 		}()
@@ -409,8 +453,11 @@ func TestReferenceTcpPerf(t *testing.T) {
 	wgWrite.Wait()
 
 	// close all writers
-	for _, conn := range clients {
-		_ = conn.Close()
+	for i, conn := range clients {
+		if conn != nil {
+			conn.Close()
+			clients[i] = nil
+		}
 	}
 
 	// wait for all readers to finish
