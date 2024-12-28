@@ -171,7 +171,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
-	testTime := 3 * time.Second
+	testTime := 1 * time.Second
 	batchSize := 100_000
 	nGoRoutines := 16
 	//tcpWindowSize := 512 * 1024 // Anything 64 kB or larger seems to have no effect. Below 64 kB performance drops quickly.

@@ -150,8 +150,6 @@ func (s *SnailServer) loopConnection(conn net.Conn) {
 		}
 		accumBuf.AddWritten(n)
 
-		slog.Debug(fmt.Sprintf("Read %d bytes", n))
-
 		err = handler(accumBuf, conn)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to handle connection data: %v", err))
