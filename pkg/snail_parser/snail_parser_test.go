@@ -460,19 +460,21 @@ func TestJsonParserPerformance_routines(t *testing.T) {
 	testLength := 1 * time.Second
 
 	t0 := time.Now()
-	codec := NewJsonLinesCodec[*jsonTestStruct]()
+	codec := NewJsonLinesCodec[jsonTestStruct]()
 
 	numReqsTot := atomic.Int64{}
+
+	sides := 1
 
 	lop.ForEach(lo.Range(numGoRoutines), func(i int, _ int) {
 		buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
 		numReqs := int64(0)
 		for i := 0; time.Since(t0) < testLength; i++ {
 
-			for side := 0; side < 2; side++ {
+			for side := 0; side < sides; side++ {
 
 				// write
-				err := codec.Writer(buffer, &jsonTestStruct{Type: int32(i), Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"})
+				err := codec.Writer(buffer, jsonTestStruct{Type: int32(i), Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"})
 				if err != nil {
 					panic(fmt.Errorf("failed to encode int: %w", err))
 				}
@@ -498,8 +500,9 @@ func TestJsonParserPerformance_routines(t *testing.T) {
 	numReqs := numReqsTot.Load()
 	rate := float64(numReqs) / testLength.Seconds()
 
-	slog.Info(fmt.Sprintf("Parsed 4x pairs of %v json structs in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
-	slog.Info(fmt.Sprintf("Rate: %s 4x pairs/sec", prettyInt3Digits(int64(rate))))
+	slog.Info(fmt.Sprintf("Sides: %v", sides))
+	slog.Info(fmt.Sprintf("Parsed sides x pairs of %v json structs in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
+	slog.Info(fmt.Sprintf("Rate: %s sides x pairs/sec", prettyInt3Digits(int64(rate))))
 
 }
 
