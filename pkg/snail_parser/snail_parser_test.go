@@ -547,8 +547,10 @@ func TestCustomStructParserPerformance_routines(t *testing.T) {
 
 			for side := 0; side < sides; side++ {
 
+				tpe := rand.Int32()
+
 				// write
-				err := codec.Writer(buffer, jsonTestStruct{Type: int32(i), Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"})
+				err := codec.Writer(buffer, jsonTestStruct{Type: tpe, Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"})
 				if err != nil {
 					panic(fmt.Errorf("failed to encode int: %w", err))
 				}
@@ -561,7 +563,7 @@ func TestCustomStructParserPerformance_routines(t *testing.T) {
 				if res.Err != nil {
 					panic(fmt.Errorf("failed to parse int: %w", res.Err))
 				}
-				if res.Value.Type != int32(i) {
+				if res.Value.Type != tpe {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Type))
 				}
 				if res.Value.Text != "test" {
@@ -618,11 +620,15 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 
 			for side := 0; side < sides; side++ {
 
+				header := rand.Int32()
+				firstId := rand.Int64()
+				secondId := rand.Int64()
+
 				// write
 				err := codec.Writer(buffer, requestTestStruct{
-					Header: 1241423151,
-					ID1:    632457453734734573,
-					ID2:    144673457347347347,
+					Header: header,
+					ID1:    firstId,
+					ID2:    secondId,
 				})
 				if err != nil {
 					panic(fmt.Errorf("failed to encode int: %w", err))
@@ -636,13 +642,13 @@ func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
 				if res.Err != nil {
 					panic(fmt.Errorf("failed to parse int: %w", res.Err))
 				}
-				if res.Value.Header != 1241423151 {
+				if res.Value.Header != header {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Header))
 				}
-				if res.Value.ID1 != 632457453734734573 {
+				if res.Value.ID1 != firstId {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.ID1))
 				}
-				if res.Value.ID2 != 144673457347347347 {
+				if res.Value.ID2 != secondId {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.ID2))
 				}
 				buffer.Reset()
