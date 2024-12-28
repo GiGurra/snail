@@ -162,11 +162,11 @@ func TestNewServer_send_1_GB(t *testing.T) {
 
 }
 
-func TestNewServer_send_1_GB_n_threads(t *testing.T) {
+func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
-	numTotalMessages := 1_000_000_000
+	numTotalMessages := 3_000_000_000
 	batchSize := 100_000
 	nGoRoutines := 16
 	nBatchesTotal := numTotalMessages / batchSize
