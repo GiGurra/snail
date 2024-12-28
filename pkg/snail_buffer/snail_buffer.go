@@ -261,3 +261,12 @@ func (b *Buffer) UnderlyingWriteable() []byte {
 func (b *Buffer) UnderlyingReadable() []byte {
 	return b.buf[b.readPos:]
 }
+
+func (b *Buffer) UnderlyingReadableView() *Buffer {
+	return &Buffer{
+		endian:      b.endian,
+		buf:         b.UnderlyingReadable(),
+		readPos:     0,
+		readPosMark: 0,
+	}
+}

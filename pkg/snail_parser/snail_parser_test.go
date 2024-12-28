@@ -506,8 +506,174 @@ func TestJsonParserPerformance_routines(t *testing.T) {
 
 }
 
+func TestCustomStructParserPerformance_routines(t *testing.T) {
+
+	numGoRoutines := 512
+	testLength := 1 * time.Second
+
+	t0 := time.Now()
+	codec := newCustomStructCodec()
+
+	numReqsTot := atomic.Int64{}
+
+	sides := 1
+
+	lop.ForEach(lo.Range(numGoRoutines), func(i int, _ int) {
+		buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+		numReqs := int64(0)
+		for i := 0; time.Since(t0) < testLength; i++ {
+
+			for side := 0; side < sides; side++ {
+
+				// write
+				err := codec.Writer(buffer, jsonTestStruct{Type: int32(i), Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"})
+				if err != nil {
+					panic(fmt.Errorf("failed to encode int: %w", err))
+				}
+
+				// read it back
+				res := codec.Parser(buffer)
+				if res.Status != ParseOneStatusOK {
+					panic(fmt.Errorf("failed to parse int: %v", res.Status))
+				}
+				if res.Err != nil {
+					panic(fmt.Errorf("failed to parse int: %w", res.Err))
+				}
+				if res.Value.Type != int32(i) {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Type))
+				}
+				if res.Value.Text != "test" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Text))
+				}
+				if res.Value.Bla != "bla" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Bla))
+				}
+				if res.Value.Foo != "foo" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Foo))
+				}
+				if res.Value.Bar != "bar" {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Bar))
+				}
+			}
+			numReqs++
+		}
+
+		numReqsTot.Add(numReqs)
+	})
+
+	numReqs := numReqsTot.Load()
+	rate := float64(numReqs) / testLength.Seconds()
+
+	slog.Info(fmt.Sprintf("Sides: %v", sides))
+	slog.Info(fmt.Sprintf("Parsed sides x pairs of %v json structs in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
+	slog.Info(fmt.Sprintf("Rate: %s sides x pairs/sec", prettyInt3Digits(int64(rate))))
+
+}
+
 var prettyPrinter = message.NewPrinter(language.English)
 
 func prettyInt3Digits(n int64) string {
 	return prettyPrinter.Sprintf("%d", n)
+}
+
+func newCustomStructCodec() Codec[jsonTestStruct] {
+	return Codec[jsonTestStruct]{
+		Parser: func(buffer *snail_buffer.Buffer) ParseOneResult[jsonTestStruct] {
+
+			if buffer.NumBytesReadable() < 5*4 {
+				return ParseOneResult[jsonTestStruct]{Status: ParseOneStatusNEB}
+			}
+
+			res := ParseOneResult[jsonTestStruct]{}
+
+			readPosBefore := buffer.ReadPos()
+
+			notEnoughBytes := func() ParseOneResult[jsonTestStruct] {
+				res.Status = ParseOneStatusNEB
+				buffer.SetReadPos(readPosBefore)
+				return res
+			}
+
+			invalid := func(err error) ParseOneResult[jsonTestStruct] {
+				res.Err = err
+				return res
+			}
+
+			var err error
+			res.Value.Type, err = buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse type: %w", err))
+			}
+
+			//Text string `json:"text"`
+			textLen, err := buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse text len: %w", err))
+			}
+			if buffer.NumBytesReadable() < int(textLen) {
+				return notEnoughBytes()
+			}
+			res.Value.Text, err = buffer.ReadString(int(textLen))
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse text: %w", err))
+			}
+
+			//Bla  string `json:"bla"`
+			blaLen, err := buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse bla len: %w", err))
+			}
+			if buffer.NumBytesReadable() < int(blaLen) {
+				return notEnoughBytes()
+			}
+			res.Value.Bla, err = buffer.ReadString(int(blaLen))
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse bla: %w", err))
+			}
+
+			//Foo  string `json:"foo"`
+			fooLen, err := buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse foo len: %w", err))
+			}
+			if buffer.NumBytesReadable() < int(fooLen) {
+				return notEnoughBytes()
+			}
+			res.Value.Foo, err = buffer.ReadString(int(fooLen))
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse foo: %w", err))
+			}
+
+			//Bar  string `json:"bar"`
+			barLen, err := buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse bar len: %w", err))
+			}
+			if buffer.NumBytesReadable() < int(barLen) {
+				return notEnoughBytes()
+			}
+			res.Value.Bar, err = buffer.ReadString(int(barLen))
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse bar: %w", err))
+			}
+
+			res.Status = ParseOneStatusOK
+			return res
+		},
+
+		Writer: func(buffer *snail_buffer.Buffer, t jsonTestStruct) error {
+
+			buffer.WriteInt32(t.Type)
+			buffer.WriteInt32(int32(len(t.Text)))
+			buffer.WriteString(t.Text)
+			buffer.WriteInt32(int32(len(t.Bla)))
+			buffer.WriteString(t.Bla)
+			buffer.WriteInt32(int32(len(t.Foo)))
+			buffer.WriteString(t.Foo)
+			buffer.WriteInt32(int32(len(t.Bar)))
+			buffer.WriteString(t.Bar)
+
+			return nil
+		},
+	}
 }
