@@ -56,3 +56,32 @@ func NewJsonLinesCodec[T any]() Codec[T] {
 		},
 	}
 }
+
+// NewInt32Codec returns a codec for int32, mostly for testing purposes
+func NewInt32Codec() Codec[int32] {
+
+	return Codec[int32]{
+
+		Parser: func(buffer *snail_buffer.Buffer) ParseOneResult[int32] {
+
+			if buffer.NumBytesReadable() < 4 {
+				return ParseOneResult[int32]{Status: ParseOneStatusNEB}
+			}
+
+			res := ParseOneResult[int32]{}
+			res.Value, res.Err = buffer.ReadInt32()
+			if res.Err == nil {
+				res.Status = ParseOneStatusOK
+			}
+
+			return res
+		},
+
+		Writer: func(buffer *snail_buffer.Buffer, t int32) error {
+
+			buffer.WriteInt32(t)
+
+			return nil
+		},
+	}
+}

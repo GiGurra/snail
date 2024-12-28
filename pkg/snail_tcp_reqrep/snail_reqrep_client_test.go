@@ -179,3 +179,88 @@ func TestNewClient_SendAndRespondWithJson_1s_naive_performance(t *testing.T) {
 	slog.Info("Sent and received", slog.Int("nReqResps", nReqResps))
 
 }
+
+func TestNewClient_SendAndRespondWithInts_1s_naive_performance(t *testing.T) {
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	slog.Info("TestNewServer_SendAndRespondWithInts")
+
+	testLength := 1 * time.Second
+
+	codec := snail_parser.NewInt32Codec()
+
+	server, err := NewServer[int32, int32](
+		func() ServerConnHandler[int32, int32] {
+			return func(req int32, repFunc func(resp int32) error) error {
+
+				if repFunc == nil {
+					slog.Warn("Client disconnected")
+					return nil
+				}
+
+				//slog.Info("Server received request", slog.String("msg", req.Msg))
+				return repFunc(0)
+			}
+		},
+		nil,
+		codec.Parser,
+		codec.Writer,
+	)
+
+	if err != nil {
+		t.Fatalf("error creating server: %v", err)
+	}
+
+	if server == nil {
+		t.Fatalf("expected server, got nil")
+	}
+
+	defer server.Close()
+
+	responseChan := make(chan int32, 100)
+
+	respHandler := func(resp int32) error {
+
+		//slog.Info("Client received response", slog.String("msg", resp.Msg))
+		responseChan <- resp
+		return nil
+	}
+
+	client, err := NewClient[int32, int32](
+		"localhost",
+		server.Port(),
+		nil,
+		respHandler,
+		codec.Writer,
+		codec.Parser,
+	)
+
+	if err != nil {
+		t.Fatalf("error creating client: %v", err)
+	}
+
+	defer client.Close()
+
+	nReqResps := 0
+	t0 := time.Now()
+	for time.Since(t0) < testLength {
+
+		err = client.Send(0)
+		if err != nil {
+			t.Fatalf("error sending request: %v", err)
+		}
+
+		select {
+		case resp := <-responseChan:
+			if resp != 0 {
+				t.Fatalf("expected response msg 0, got %d", resp)
+			}
+			nReqResps++
+		case <-time.After(1 * time.Second):
+			t.Fatalf("timeout waiting for response")
+		}
+	}
+
+	slog.Info("Sent and received", slog.Int("nReqResps", nReqResps))
+
+}
