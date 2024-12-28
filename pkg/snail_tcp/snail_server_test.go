@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
+	"github.com/samber/lo"
+	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"io"
@@ -519,5 +521,134 @@ func TestTcpRefReqRespRate(t *testing.T) {
 	slog.Info("Test done")
 
 	slog.Info(fmt.Sprintf("Total requests: %v", prettyInt3Digits(nReqs)))
+
+}
+
+func TestTcpRefReqRespRate_routines(t *testing.T) {
+	// This test is a reference test the golang tcp performance.
+	nGoRoutines := 512
+	testTime := 1 * time.Second
+
+	// Create a server socket
+	socket, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("error creating server socket: %v", err)
+	}
+	defer func() { _ = socket.Close() }()
+
+	// create listener goroutines
+	go func() {
+		for {
+			conn, err := socket.Accept()
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) {
+					slog.Debug("Listener is closed, shutting down")
+					return
+				} else {
+					panic(fmt.Errorf("error accepting connection: %w", err))
+				}
+			}
+
+			go func() {
+				serverBlob := make([]byte, 4)
+				for {
+					// read
+					n, err := conn.Read(serverBlob)
+					if err != nil {
+						if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+							slog.Debug("Connection is closed, shutting down accepted conn")
+							return
+						} else {
+							panic(fmt.Errorf("error reading from connection: %w", err))
+						}
+					}
+					if n != 4 {
+						panic(fmt.Errorf("expected to read 4 bytes, got %d", n))
+					}
+					// write it back
+					n, err = conn.Write(serverBlob)
+					if err != nil {
+						if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+							slog.Debug("Connection is closed, shutting down accepted conn")
+							return
+						} else {
+							panic(fmt.Errorf("error writing to connection: %w", err))
+						}
+					}
+					if n != 4 {
+						panic(fmt.Errorf("expected to write 4 bytes, got %d", n))
+					}
+				}
+			}()
+		}
+	}()
+
+	port := socket.Addr().(*net.TCPAddr).Port
+
+	slog.Info("Listener port", slog.Int("port", port))
+
+	totalWriteCount := atomic.Int64{}
+
+	clients := make([]*net.TCPConn, nGoRoutines)
+	for i := 0; i < nGoRoutines; i++ {
+		client, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+		if err != nil {
+			t.Fatalf("error connecting to server: %v", err)
+		}
+		clients[i] = client.(*net.TCPConn)
+	}
+	defer func() {
+		for _, conn := range clients {
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+
+	t0 := time.Now()
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+		clientBlob := make([]byte, 4) // an int32
+
+		clientSocket := clients[i]
+
+		nReqs := int64(0)
+		defer func() {
+			totalWriteCount.Add(nReqs)
+		}()
+		for time.Since(t0) < testTime {
+			// write
+			n, err := clientSocket.Write(clientBlob)
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+					slog.Debug("Connection is closed, shutting down client")
+					return
+				} else {
+					panic(fmt.Errorf("error writing to connection: %w", err))
+				}
+			}
+			if n != 4 {
+				panic(fmt.Errorf("expected to write 4 bytes, got %d", n))
+			}
+			// read
+			n, err = clientSocket.Read(clientBlob)
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+					slog.Debug("Connection is closed, shutting down client")
+					return
+				} else {
+					panic(fmt.Errorf("error reading from connection: %w", err))
+				}
+			}
+			if n != 4 {
+				panic(fmt.Errorf("expected to read 4 bytes, got %d", n))
+			}
+			nReqs++
+		}
+	})
+
+	slog.Info("Test done")
+
+	slog.Info(fmt.Sprintf("Total requests: %v", prettyInt3Digits(totalWriteCount.Load())))
 
 }
