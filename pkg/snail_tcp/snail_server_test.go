@@ -8,6 +8,7 @@ import (
 	"golang.org/x/text/message"
 	"io"
 	"log/slog"
+	"net"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -294,4 +295,49 @@ var prettyPrinter = message.NewPrinter(language.English)
 
 func prettyInt3Digits(n int64) string {
 	return prettyPrinter.Sprintf("%d", n)
+}
+
+func TestReferenceTcpPerf(t *testing.T) {
+	// This test is a reference test the golang tcp performance.
+	nClients := 16
+
+	// Create a server socket
+	socket, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("error creating server socket: %v", err)
+	}
+	defer func() { _ = socket.Close() }()
+
+	port := socket.Addr().(*net.TCPAddr).Port
+
+	slog.Info("Listener port", slog.Int("port", port))
+
+	// create clients
+	clients := make([]*net.TCPConn, nClients)
+	for i := 0; i < nClients; i++ {
+		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+		if err != nil {
+			t.Fatalf("error creating client: %v", err)
+		}
+		clients[i] = conn.(*net.TCPConn)
+	}
+	defer func() {
+		for _, conn := range clients {
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+
+	slog.Info("Clients are connected")
+
+	// accept connections
+	accepted := make([]*net.TCPConn, nClients)
+	for i := 0; i < nClients; i++ {
+		conn, err := socket.Accept()
+		if err != nil {
+			t.Fatalf("error accepting connection: %v", err)
+		}
+		accepted[i] = conn.(*net.TCPConn)
+	}
 }
