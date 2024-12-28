@@ -5,6 +5,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"log/slog"
 	"testing"
+	"time"
 )
 
 func TestNewClient_SendAndRespondWithJson(t *testing.T) {
@@ -43,6 +44,8 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 
 	defer server.Close()
 
+	responseChan := make(chan *responseStruct)
+
 	respHandler := func(resp *responseStruct) error {
 
 		if resp == nil {
@@ -51,6 +54,7 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 		}
 
 		slog.Info("Client received response", slog.String("msg", resp.Msg))
+		responseChan <- resp
 		return nil
 	}
 
@@ -68,5 +72,19 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 	}
 
 	defer client.Close()
+
+	err = client.Send(&requestStruct{Msg: "Hello from client"})
+	if err != nil {
+		t.Fatalf("error sending request: %v", err)
+	}
+
+	select {
+	case resp := <-responseChan:
+		if resp.Msg != "Hello from server" {
+			t.Fatalf("expected response msg 'Hello from server', got '%s'", resp.Msg)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timeout waiting for response")
+	}
 
 }

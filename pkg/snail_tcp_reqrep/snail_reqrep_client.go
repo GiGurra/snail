@@ -5,6 +5,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
+	"sync"
 )
 
 // ClientRespHandler is the custom response handler for a client connection.
@@ -14,6 +15,8 @@ type SnailClient[Req any, Resp any] struct {
 	underlying *snail_tcp.SnailClient
 	writeFunc  snail_parser.WriteFunc[Req]
 	parseFunc  snail_parser.ParseFunc[Resp]
+	writeMutex sync.Mutex
+	convertBuf *snail_buffer.Buffer
 }
 
 func NewClient[Req any, Resp any](
@@ -34,6 +37,8 @@ func NewClient[Req any, Resp any](
 		underlying: underlying,
 		writeFunc:  writeFunc,
 		parseFunc:  parseFunc,
+		writeMutex: sync.Mutex{},
+		convertBuf: snail_buffer.New(snail_buffer.BigEndian, 1024),
 	}, nil
 }
 
@@ -43,6 +48,22 @@ func (s *SnailClient[Req, Resp]) Underlying() *snail_tcp.SnailClient {
 
 func (s *SnailClient[Req, Resp]) Close() {
 	s.underlying.Close()
+}
+
+func (s *SnailClient[Req, Resp]) Send(r Req) error {
+	s.writeMutex.Lock()
+	defer s.writeMutex.Unlock()
+	defer s.convertBuf.Reset()
+
+	if err := s.writeFunc(s.convertBuf, r); err != nil {
+		return fmt.Errorf("failed to write request: %w", err)
+	}
+
+	if err := s.underlying.SendBytes(s.convertBuf.UnderlyingReadable()); err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return nil
 }
 
 func newTcpClientRespHandler[Resp any](
