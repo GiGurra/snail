@@ -511,7 +511,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		})
 	}()
 
-	slog.Info("Waiting for chains to finish")
+	slog.Info("Waiting to receive all responses")
 	wgWriters.Wait()
 
 	elapsed := time.Since(t0)
