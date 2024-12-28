@@ -331,3 +331,29 @@ func TestWriteAll_WriteReadJson(t *testing.T) {
 		t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
 	}
 }
+
+func TestJsonCanSerializePtrs(t *testing.T) {
+	codec := NewJsonLinesCodec[*jsonTestStruct]()
+	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+
+	// Write a pointer to a struct
+	data := &jsonTestStruct{Type: 42, Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"}
+	err := codec.Writer(buffer, data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Read the pointer back
+	res := codec.Parser(buffer)
+	if res.Status != ParseOneStatusOK {
+		t.Fatalf("expected status OK, got %v", res.Status)
+	}
+
+	if res.Err != nil {
+		t.Fatalf("unexpected error: %v", res.Err)
+	}
+
+	if diff := cmp.Diff(data, res.Value); diff != "" {
+		t.Fatalf("unexpected results (-want +got):\n%s", diff)
+	}
+}
