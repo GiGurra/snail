@@ -16,7 +16,7 @@ const (
 )
 
 // ClientRespHandler is the custom response handler for a client connection.
-type ClientRespHandler[Rep any] func(rep Rep, tpe ClientStatus) error
+type ClientRespHandler[Resp any] func(resp Resp, tpe ClientStatus) error
 
 type SnailClient[Req any, Resp any] struct {
 	underlying *snail_tcp.SnailClient
