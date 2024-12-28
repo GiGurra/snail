@@ -174,6 +174,21 @@ func (b *Buffer) ReadBytes(n int) ([]byte, error) {
 	return cpy, nil
 }
 
+func (b *Buffer) ReadBytesInto(trg []byte, n int) error {
+	if !b.CanRead(n) {
+		return fmt.Errorf("not enough data to read bytes")
+	}
+
+	if len(trg) < n {
+		return fmt.Errorf("target buffer too small")
+	}
+
+	copy(trg, b.buf[b.readPos:b.readPos+n])
+	b.readPos += n
+
+	return nil
+}
+
 func (b *Buffer) NumBytesReadable() int {
 	return len(b.buf) - b.readPos
 }

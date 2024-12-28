@@ -565,7 +565,72 @@ func TestCustomStructParserPerformance_routines(t *testing.T) {
 	rate := float64(numReqs) / testLength.Seconds()
 
 	slog.Info(fmt.Sprintf("Sides: %v", sides))
-	slog.Info(fmt.Sprintf("Parsed sides x pairs of %v json structs in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
+	slog.Info(fmt.Sprintf("Parsed sides x pairs of %v structs in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
+	slog.Info(fmt.Sprintf("Rate: %s sides x pairs/sec", prettyInt3Digits(int64(rate))))
+
+}
+
+type requestTestStruct struct {
+	Header int32
+	ID     int16
+}
+
+func TestSmallCustomStructParserPerformance_routines(t *testing.T) {
+
+	numGoRoutines := 512
+	testLength := 1 * time.Second
+
+	t0 := time.Now()
+	codec := newRequestTestStructCodec()
+
+	structData := requestTestStruct{
+		Header: 1241423151,
+		ID:     12332,
+	}
+
+	numReqsTot := atomic.Int64{}
+
+	sides := 1
+
+	lop.ForEach(lo.Range(numGoRoutines), func(i int, _ int) {
+		buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+		numReqs := int64(0)
+		for i := 0; time.Since(t0) < testLength; i++ {
+
+			for side := 0; side < sides; side++ {
+
+				// write
+				err := codec.Writer(buffer, structData)
+				if err != nil {
+					panic(fmt.Errorf("failed to encode int: %w", err))
+				}
+
+				// read it back
+				res := codec.Parser(buffer)
+				if res.Status != ParseOneStatusOK {
+					panic(fmt.Errorf("failed to parse int: %v", res.Status))
+				}
+				if res.Err != nil {
+					panic(fmt.Errorf("failed to parse int: %w", res.Err))
+				}
+				if res.Value.Header != structData.Header {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.Header))
+				}
+				if res.Value.ID != structData.ID {
+					panic(fmt.Errorf("unexpected value: %v", res.Value.ID))
+				}
+			}
+			numReqs++
+		}
+
+		numReqsTot.Add(numReqs)
+	})
+
+	numReqs := numReqsTot.Load()
+	rate := float64(numReqs) / testLength.Seconds()
+
+	slog.Info(fmt.Sprintf("Sides: %v", sides))
+	slog.Info(fmt.Sprintf("Parsed sides x pairs of %v structs in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
 	slog.Info(fmt.Sprintf("Rate: %s sides x pairs/sec", prettyInt3Digits(int64(rate))))
 
 }
@@ -672,6 +737,49 @@ func newCustomStructCodec() Codec[jsonTestStruct] {
 			buffer.WriteString(t.Foo)
 			buffer.WriteInt32(int32(len(t.Bar)))
 			buffer.WriteString(t.Bar)
+
+			return nil
+		},
+	}
+}
+
+func newRequestTestStructCodec() Codec[requestTestStruct] {
+
+	serializedSize := 4 + 2
+
+	return Codec[requestTestStruct]{
+		Parser: func(buffer *snail_buffer.Buffer) ParseOneResult[requestTestStruct] {
+
+			if buffer.NumBytesReadable() < serializedSize {
+				return ParseOneResult[requestTestStruct]{Status: ParseOneStatusNEB}
+			}
+
+			res := ParseOneResult[requestTestStruct]{}
+
+			invalid := func(err error) ParseOneResult[requestTestStruct] {
+				res.Err = err
+				return res
+			}
+
+			var err error
+			res.Value.Header, err = buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse header: %w", err))
+			}
+
+			res.Value.ID, err = buffer.ReadInt16()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse ID: %w", err))
+			}
+
+			res.Status = ParseOneStatusOK
+			return res
+		},
+
+		Writer: func(buffer *snail_buffer.Buffer, t requestTestStruct) error {
+
+			buffer.WriteInt32(t.Header)
+			buffer.WriteInt16(t.ID)
 
 			return nil
 		},
