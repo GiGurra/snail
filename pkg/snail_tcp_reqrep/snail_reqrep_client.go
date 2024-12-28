@@ -8,8 +8,15 @@ import (
 	"sync"
 )
 
+type ClientStatus int
+
+const (
+	ClientStatusOK           ClientStatus = iota
+	ClientStatusDisconnected ClientStatus = iota
+)
+
 // ClientRespHandler is the custom response handler for a client connection.
-type ClientRespHandler[Rep any] func(rep Rep) error
+type ClientRespHandler[Rep any] func(rep Rep, tpe ClientStatus) error
 
 type SnailClient[Req any, Resp any] struct {
 	underlying *snail_tcp.SnailClient
@@ -75,7 +82,7 @@ func newTcpClientRespHandler[Resp any](
 
 		if readBuffer == nil {
 			var zero Resp
-			return respHandler(zero)
+			return respHandler(zero, ClientStatusDisconnected)
 		}
 
 		reqs, err := snail_parser.ParseAll[Resp](readBuffer, parseFunc)
@@ -84,7 +91,7 @@ func newTcpClientRespHandler[Resp any](
 		}
 
 		for _, req := range reqs {
-			if err := respHandler(req); err != nil {
+			if err := respHandler(req, ClientStatusOK); err != nil {
 				return fmt.Errorf("failed to handle response: %w", err)
 			}
 		}

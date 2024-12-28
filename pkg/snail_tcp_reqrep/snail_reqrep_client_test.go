@@ -46,7 +46,7 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 
 	responseChan := make(chan *responseStruct)
 
-	respHandler := func(resp *responseStruct) error {
+	respHandler := func(resp *responseStruct, status ClientStatus) error {
 
 		if resp == nil {
 			slog.Warn("Server disconnected")
@@ -129,9 +129,9 @@ func TestNewClient_SendAndRespondWithJson_1s_naive_performance(t *testing.T) {
 
 	responseChan := make(chan *responseStruct)
 
-	respHandler := func(resp *responseStruct) error {
+	respHandler := func(resp *responseStruct, status ClientStatus) error {
 
-		if resp == nil {
+		if status == ClientStatusDisconnected {
 			slog.Warn("Server disconnected")
 			return nil
 		}
@@ -219,7 +219,12 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance(t *testing.T) {
 
 	responseChan := make(chan int32, 100)
 
-	respHandler := func(resp int32) error {
+	respHandler := func(resp int32, status ClientStatus) error {
+
+		if status == ClientStatusDisconnected {
+			slog.Warn("Server disconnected")
+			return nil
+		}
 
 		//slog.Info("Client received response", slog.String("msg", resp.Msg))
 		responseChan <- resp
