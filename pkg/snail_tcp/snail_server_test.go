@@ -423,3 +423,101 @@ func TestReferenceTcpPerf(t *testing.T) {
 	slog.Info(fmt.Sprintf("Byte rate: %v", prettyInt3Digits(int64(byteRate))))
 	slog.Info(fmt.Sprintf("Bit rate: %v", prettyInt3Digits(int64(bitRate))))
 }
+
+func TestTcpRefReqRespRate(t *testing.T) {
+	// This test is a reference test the golang tcp performance.
+	testTime := 1 * time.Second
+	clientBlob := make([]byte, 4) // an int32
+
+	// Create a server socket
+	socket, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("error creating server socket: %v", err)
+	}
+	defer func() { _ = socket.Close() }()
+
+	// create listener goroutine
+	go func() {
+		conn, err := socket.Accept()
+		if err != nil {
+			panic(fmt.Errorf("error accepting connection: %w", err))
+		}
+		defer func() { _ = conn.Close() }()
+
+		serverBlob := make([]byte, 4)
+		for {
+			// read
+			n, err := conn.Read(serverBlob)
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+					slog.Debug("Connection is closed, shutting down accepted conn")
+					return
+				} else {
+					panic(fmt.Errorf("error reading from connection: %w", err))
+				}
+			}
+			if n != 4 {
+				panic(fmt.Errorf("expected to read 4 bytes, got %d", n))
+			}
+			// write it back
+			n, err = conn.Write(serverBlob)
+			if err != nil {
+				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+					slog.Debug("Connection is closed, shutting down accepted conn")
+					return
+				} else {
+					panic(fmt.Errorf("error writing to connection: %w", err))
+				}
+			}
+			if n != 4 {
+				panic(fmt.Errorf("expected to write 4 bytes, got %d", n))
+			}
+		}
+	}()
+
+	port := socket.Addr().(*net.TCPAddr).Port
+
+	slog.Info("Listener port", slog.Int("port", port))
+
+	clientSocket, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		t.Fatalf("error connecting to server: %v", err)
+	}
+
+	t0 := time.Now()
+	nReqs := int64(0)
+	for time.Since(t0) < testTime {
+		// write
+		n, err := clientSocket.Write(clientBlob)
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				slog.Debug("Connection is closed, shutting down client")
+				return
+			} else {
+				panic(fmt.Errorf("error writing to connection: %w", err))
+			}
+		}
+		if n != 4 {
+			panic(fmt.Errorf("expected to write 4 bytes, got %d", n))
+		}
+		// read
+		n, err = clientSocket.Read(clientBlob)
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				slog.Debug("Connection is closed, shutting down client")
+				return
+			} else {
+				panic(fmt.Errorf("error reading from connection: %w", err))
+			}
+		}
+		if n != 4 {
+			panic(fmt.Errorf("expected to read 4 bytes, got %d", n))
+		}
+		nReqs++
+	}
+
+	slog.Info("Test done")
+
+	slog.Info(fmt.Sprintf("Total requests: %v", prettyInt3Digits(nReqs)))
+
+}
