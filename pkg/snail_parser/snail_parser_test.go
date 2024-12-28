@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+	"log/slog"
 	"testing"
+	"time"
 )
 
 func IntParser(buffer *snail_buffer.Buffer) ParseOneResult[int] {
@@ -356,4 +360,50 @@ func TestJsonCanSerializePtrs(t *testing.T) {
 	if diff := cmp.Diff(data, res.Value); diff != "" {
 		t.Fatalf("unexpected results (-want +got):\n%s", diff)
 	}
+}
+
+func TestIntParserPerformance(t *testing.T) {
+
+	testLength := 1 * time.Second
+
+	t0 := time.Now()
+	codec := NewInt32Codec()
+	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+	numReqs := 0
+	for i := 0; time.Since(t0) < testLength; i++ {
+
+		for side := 0; side < 2; side++ {
+
+			// write
+			err := codec.Writer(buffer, int32(i))
+			if err != nil {
+				panic(fmt.Errorf("failed to encode int: %w", err))
+			}
+
+			// read it back
+			res := codec.Parser(buffer)
+			if res.Status != ParseOneStatusOK {
+				panic(fmt.Errorf("failed to parse int: %v", res.Status))
+			}
+			if res.Err != nil {
+				panic(fmt.Errorf("failed to parse int: %w", res.Err))
+			}
+			if res.Value != int32(i) {
+				panic(fmt.Errorf("unexpected value: %v", res.Value))
+			}
+		}
+		numReqs++
+	}
+
+	rate := float64(numReqs) / testLength.Seconds()
+
+	slog.Info(fmt.Sprintf("Parsed %v ints in %v", prettyInt3Digits(int64(numReqs)), time.Since(t0)))
+	slog.Info(fmt.Sprintf("Rate: %s ints/sec", prettyInt3Digits(int64(rate))))
+
+}
+
+var prettyPrinter = message.NewPrinter(language.English)
+
+func prettyInt3Digits(n int64) string {
+	return prettyPrinter.Sprintf("%d", n)
 }
