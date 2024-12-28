@@ -183,13 +183,18 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	atomicCounter := atomic.Int64{}
 	batch := make([]byte, batchSize)
 
+	wrReaders := sync.WaitGroup{}
 	newHandlerFunc := func() ServerConnHandler {
+		counter := int64(0)
+		wrReaders.Add(1)
 		return func(buffer *snail_buffer.Buffer, writer io.Writer) error {
 			if buffer == nil || writer == nil {
+				atomicCounter.Add(counter)
+				wrReaders.Done()
 				slog.Debug("Closing connection")
 				return nil
 			} else {
-				atomicCounter.Add(int64(buffer.NumBytesReadable()))
+				counter += int64(buffer.NumBytesReadable())
 				buffer.Reset()
 				//slog.Info("Handler received data")
 				//for _, b := range buffer.ReadAll() {
@@ -252,7 +257,12 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	wgWriters.Wait()
 
+	slog.Info("All writers are done")
+
 	elapsed := time.Since(t0)
+
+	slog.Info("Waiting for all readers to finish")
+	wrReaders.Wait()
 
 	slog.Info("Received all messages")
 	numTotalMessages := atomicCounter.Load()
