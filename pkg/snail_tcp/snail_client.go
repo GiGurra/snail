@@ -30,6 +30,7 @@ type SnailClientOpts struct {
 	ReadBufSize         int
 	MaxBufferedRespData int // TODO: Make use of?
 	WriteBufSize        int // TODO: Make use of?
+	TcpSendWindowSize   int
 }
 
 func (o SnailClientOpts) WithDefaults() SnailClientOpts {
@@ -68,6 +69,12 @@ func NewClient(
 		err = socket.(*net.TCPConn).SetNoDelay(true) // we favor latency over throughput here.
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY=true: %v. Proceeding anyway :S", err))
+		}
+	}
+	if opts.TcpSendWindowSize > 0 {
+		err = socket.(*net.TCPConn).SetWriteBuffer(opts.TcpSendWindowSize)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to set TCP send window size: %v. Proceeding anyway :S", err))
 		}
 	}
 	if err != nil {

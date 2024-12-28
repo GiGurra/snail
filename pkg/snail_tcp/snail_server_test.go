@@ -171,12 +171,14 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	nGoRoutines := 16
 	nBatchesTotal := numTotalMessages / batchSize
 	nBatchesPerRoutine := nBatchesTotal / nGoRoutines
+	tcpWindowSize := 16 * 1024 * 1024 // 16 MB seems about right. Anything 64 kB or larger seems good.
 
 	slog.Info("numTotalMessages", slog.Int("numTotalMessages", numTotalMessages))
 	slog.Info("batchSize", slog.Int("batchSize", batchSize))
 	slog.Info("nGoRoutines", slog.Int("nGoRoutines", nGoRoutines))
 	slog.Info("nBatchesTotal", slog.Int("nBatchesTotal", nBatchesTotal))
 	slog.Info("nBatchesPerRoutine", slog.Int("nBatchesPerRoutine", nBatchesPerRoutine))
+	slog.Info("tcpWindowSize", slog.Int("tcpWindowSize", tcpWindowSize))
 
 	if //goland:noinspection GoBoolExpressions
 	numTotalMessages%batchSize != 0 {
@@ -210,7 +212,9 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 		}
 	}
 
-	server, err := NewServer(newHandlerFunc, nil)
+	server, err := NewServer(newHandlerFunc, &SnailServerOpts{
+		TcpReadWindowSize: tcpWindowSize,
+	})
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
@@ -230,7 +234,9 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 			client, err := NewClient(
 				"localhost",
 				server.Port(),
-				nil,
+				&SnailClientOpts{
+					TcpSendWindowSize: tcpWindowSize,
+				},
 				func(buffer *snail_buffer.Buffer) error {
 					slog.Error("Client received response data, should not happen in this test")
 					return nil

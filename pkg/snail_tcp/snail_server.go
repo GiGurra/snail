@@ -20,9 +20,10 @@ type SnailServer struct {
 
 type SnailServerOpts struct {
 	//MaxConnections int // TODO: implement support for this
-	Optimization OptimizationType
-	ReadBufSize  int
-	Port         int
+	Optimization      OptimizationType
+	ReadBufSize       int
+	Port              int
+	TcpReadWindowSize int
 }
 
 func (s SnailServerOpts) WithDefaults() SnailServerOpts {
@@ -88,6 +89,13 @@ func (s *SnailServer) loopConnections() {
 			err = conn.(*net.TCPConn).SetNoDelay(true) // we favor latency over throughput here.
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY=true: %v. Proceeding anyway :S", err))
+			}
+		}
+
+		if s.opts.TcpReadWindowSize > 0 {
+			err = conn.(*net.TCPConn).SetReadBuffer(s.opts.TcpReadWindowSize)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to set TCP read buffer size: %v. Proceeding anyway :S", err))
 			}
 		}
 
