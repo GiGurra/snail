@@ -308,7 +308,7 @@ func TestReferenceTcpPerf(t *testing.T) {
 	readBufSize := 10 * chunkSize
 
 	// Create a server socket
-	socket, err := net.Listen("tcp", "localhost:0")
+	socket, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("error creating server socket: %v", err)
 	}
@@ -413,7 +413,9 @@ func TestReferenceTcpPerf(t *testing.T) {
 
 	slog.Info(fmt.Sprintf("Total bytes written: %v", prettyInt3Digits(totalReadBytes.Load())))
 
-	rate := float64(totalReadBytes.Load()) / testTime.Seconds()
+	byteRate := float64(totalReadBytes.Load()) / testTime.Seconds()
+	bitRate := byteRate * 8
 
-	slog.Info(fmt.Sprintf("Rate: %v", prettyInt3Digits(int64(rate))))
+	slog.Info(fmt.Sprintf("Byte rate: %v", prettyInt3Digits(int64(byteRate))))
+	slog.Info(fmt.Sprintf("Bit rate: %v", prettyInt3Digits(int64(bitRate))))
 }
