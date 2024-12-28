@@ -179,8 +179,10 @@ func (b *Buffer) NumBytesReadable() int {
 }
 
 func (b *Buffer) DiscardReadBytes() {
-	b.buf = snail_slice.DiscardFirstN(b.buf, b.readPos)
+	readPosBefore := b.readPos
+	b.buf = snail_slice.DiscardFirstN(b.buf, readPosBefore)
 	b.readPos = 0
+	b.readPosMark -= readPosBefore
 }
 
 func (b *Buffer) WriteUInt8(u uint8) {
@@ -236,6 +238,10 @@ func (b *Buffer) SetReadPos(pos int) {
 	b.readPos = pos
 }
 
+func (b *Buffer) AdvanceReadPos(delta int) {
+	b.readPos += delta
+}
+
 func (b *Buffer) EnsureSpareCapacity(n int) {
 	if cap(b.buf)-len(b.buf) < n {
 		newBuf := make([]byte, len(b.buf), len(b.buf)+n)
@@ -250,4 +256,8 @@ func (b *Buffer) AddWritten(n int) {
 
 func (b *Buffer) UnderlyingWriteable() []byte {
 	return b.buf[len(b.buf):cap(b.buf)]
+}
+
+func (b *Buffer) UnderlyingReadable() []byte {
+	return b.buf[b.readPos:]
 }

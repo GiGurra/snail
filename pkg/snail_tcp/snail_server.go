@@ -150,5 +150,6 @@ func (s *SnailServer) loopConn(conn net.Conn) {
 			giveUp()
 			return
 		}
+		accumBuf.DiscardReadBytes()
 	}
 }
