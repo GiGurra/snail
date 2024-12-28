@@ -6,6 +6,8 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -383,6 +385,12 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 	slog.Info("Waiting for chains to finish")
 	wgWriters.Wait()
 
-	slog.Info("Sent and received", slog.Int64("nReqResps", nReqResps.Load()))
+	slog.Info(fmt.Sprintf("Sent requests and received %v responses in %v", prettyInt3Digits(nReqResps.Load()), testLength))
 
+}
+
+var prettyPrinter = message.NewPrinter(language.English)
+
+func prettyInt3Digits(n int64) string {
+	return prettyPrinter.Sprintf("%d", n)
 }
