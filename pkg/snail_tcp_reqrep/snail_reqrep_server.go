@@ -87,20 +87,15 @@ func newTcpServerConnHandler[Req any, Resp any](
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
 
+			// Prepare the response
 			if err := writeFunc(writeBuffer, resp); err != nil {
 				return fmt.Errorf("failed to write response: %w", err)
 			}
 
 			// Write the response
-			bytes := writeBuffer.Underlying()
-			nTotal := len(bytes)
-			nWritten := 0
-			for nWritten < nTotal {
-				n, err := writer.Write(bytes[nWritten:])
-				if err != nil {
-					return fmt.Errorf("failed to write response: %w", err)
-				}
-				nWritten += n
+			err := snail_tcp.SendAll(writer, writeBuffer.Underlying())
+			if err != nil {
+				return fmt.Errorf("failed to write response: %w", err)
 			}
 			writeBuffer.Reset()
 

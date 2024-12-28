@@ -133,18 +133,5 @@ func (c *SnailClient) Close() {
 }
 
 func (c *SnailClient) SendBytes(data []byte) error {
-
-	nWritten := 0
-	for nWritten < len(data) {
-		n, err := c.socket.Write(data[nWritten:])
-		if err != nil {
-			return fmt.Errorf("failed to write msg to socket: %w", err)
-		}
-		if n < 0 {
-			return fmt.Errorf("failed to write msg to socket, n < 0")
-		}
-		nWritten += n
-	}
-
-	return nil
+	return SendAll(c.socket, data)
 }
