@@ -528,6 +528,7 @@ func TestTcpRefReqRespRate_routines(t *testing.T) {
 	// This test is a reference test the golang tcp performance.
 	nGoRoutines := 512
 	testTime := 1 * time.Second
+	tcpNoDelay := true
 
 	// Create a server socket
 	socket, err := net.Listen("tcp", ":0")
@@ -547,6 +548,24 @@ func TestTcpRefReqRespRate_routines(t *testing.T) {
 				} else {
 					panic(fmt.Errorf("error accepting connection: %w", err))
 				}
+			}
+
+			// set tcp no delay
+			err = conn.(*net.TCPConn).SetNoDelay(tcpNoDelay)
+			if err != nil {
+				panic(fmt.Errorf("error setting no delay: %w", err))
+			}
+
+			// send window size
+			err = conn.(*net.TCPConn).SetWriteBuffer(4)
+			if err != nil {
+				panic(fmt.Errorf("error setting write buffer: %w", err))
+			}
+
+			// set read buffer size
+			err = conn.(*net.TCPConn).SetReadBuffer(4)
+			if err != nil {
+				panic(fmt.Errorf("error setting read buffer: %w", err))
 			}
 
 			go func() {
@@ -587,8 +606,6 @@ func TestTcpRefReqRespRate_routines(t *testing.T) {
 
 	slog.Info("Listener port", slog.Int("port", port))
 
-	totalWriteCount := atomic.Int64{}
-
 	clients := make([]*net.TCPConn, nGoRoutines)
 	for i := 0; i < nGoRoutines; i++ {
 		client, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
@@ -596,6 +613,22 @@ func TestTcpRefReqRespRate_routines(t *testing.T) {
 			t.Fatalf("error connecting to server: %v", err)
 		}
 		clients[i] = client.(*net.TCPConn)
+		// set tcp no delay
+		err = clients[i].SetNoDelay(tcpNoDelay)
+		if err != nil {
+			t.Fatalf("error setting no delay: %v", err)
+		}
+		// send window size
+		err = clients[i].SetWriteBuffer(4)
+		if err != nil {
+			t.Fatalf("error setting write buffer: %v", err)
+		}
+
+		// set read buffer size
+		err = clients[i].SetReadBuffer(4)
+		if err != nil {
+			t.Fatalf("error setting read buffer: %v", err)
+		}
 	}
 	defer func() {
 		for _, conn := range clients {
@@ -605,50 +638,53 @@ func TestTcpRefReqRespRate_routines(t *testing.T) {
 		}
 	}()
 
-	t0 := time.Now()
-	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+	for i := 0; i < 2; i++ {
+		t0 := time.Now()
+		totalWriteCount := atomic.Int64{}
+		lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
-		clientBlob := make([]byte, 4) // an int32
+			clientBlob := make([]byte, 4) // an int32
 
-		clientSocket := clients[i]
+			clientSocket := clients[i]
 
-		nReqs := int64(0)
-		defer func() {
-			totalWriteCount.Add(nReqs)
-		}()
-		for time.Since(t0) < testTime {
-			// write
-			n, err := clientSocket.Write(clientBlob)
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-					slog.Debug("Connection is closed, shutting down client")
-					return
-				} else {
-					panic(fmt.Errorf("error writing to connection: %w", err))
+			nReqs := int64(0)
+			defer func() {
+				totalWriteCount.Add(nReqs)
+			}()
+			for time.Since(t0) < testTime {
+				// write
+				n, err := clientSocket.Write(clientBlob)
+				if err != nil {
+					if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+						slog.Debug("Connection is closed, shutting down client")
+						return
+					} else {
+						panic(fmt.Errorf("error writing to connection: %w", err))
+					}
 				}
-			}
-			if n != 4 {
-				panic(fmt.Errorf("expected to write 4 bytes, got %d", n))
-			}
-			// read
-			n, err = clientSocket.Read(clientBlob)
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-					slog.Debug("Connection is closed, shutting down client")
-					return
-				} else {
-					panic(fmt.Errorf("error reading from connection: %w", err))
+				if n != 4 {
+					panic(fmt.Errorf("expected to write 4 bytes, got %d", n))
 				}
+				// read
+				n, err = clientSocket.Read(clientBlob)
+				if err != nil {
+					if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+						slog.Debug("Connection is closed, shutting down client")
+						return
+					} else {
+						panic(fmt.Errorf("error reading from connection: %w", err))
+					}
+				}
+				if n != 4 {
+					panic(fmt.Errorf("expected to read 4 bytes, got %d", n))
+				}
+				nReqs++
 			}
-			if n != 4 {
-				panic(fmt.Errorf("expected to read 4 bytes, got %d", n))
-			}
-			nReqs++
-		}
-	})
+		})
 
-	slog.Info("Test done")
+		slog.Info("Test done")
 
-	slog.Info(fmt.Sprintf("Total requests: %v", prettyInt3Digits(totalWriteCount.Load())))
+		slog.Info(fmt.Sprintf("Total requests: %v", prettyInt3Digits(totalWriteCount.Load())))
+	}
 
 }
