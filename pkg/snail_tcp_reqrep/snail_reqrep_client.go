@@ -8,7 +8,7 @@ import (
 )
 
 // ClientRespHandler is the custom response handler for a client connection.
-type ClientRespHandler[Rep any] func(rep *Rep) error
+type ClientRespHandler[Rep any] func(rep Rep) error
 
 type SnailClient[Req any, Resp any] struct {
 	underlying *snail_tcp.SnailClient
@@ -46,14 +46,15 @@ func (s *SnailClient[Req, Resp]) Close() {
 }
 
 func newTcpClientRespHandler[Resp any](
-	respHandler func(resp *Resp) error,
+	respHandler ClientRespHandler[Resp],
 	parseFunc snail_parser.ParseFunc[Resp],
 ) snail_tcp.ClientRespHandler {
 
 	tcpHandler := func(readBuffer *snail_buffer.Buffer) error {
 
 		if readBuffer == nil {
-			return respHandler(nil)
+			var zero Resp
+			return respHandler(zero)
 		}
 
 		reqs, err := snail_parser.ParseAll[Resp](readBuffer, parseFunc)
@@ -62,7 +63,7 @@ func newTcpClientRespHandler[Resp any](
 		}
 
 		for _, req := range reqs {
-			if err := respHandler(&req); err != nil {
+			if err := respHandler(req); err != nil {
 				return fmt.Errorf("failed to handle response: %w", err)
 			}
 		}

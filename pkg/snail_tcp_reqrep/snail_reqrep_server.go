@@ -11,8 +11,8 @@ import (
 
 // ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
 type ServerConnHandler[Req any, Resp any] func(
-	req *Req,
-	repFunc func(resp *Resp) error,
+	req Req,
+	repFunc func(resp Resp) error,
 ) error
 
 type SnailServer[Req any, Resp any] struct {
@@ -71,7 +71,8 @@ func newTcpServerConnHandler[Req any, Resp any](
 	tcpHandler := func(readBuffer *snail_buffer.Buffer, writer io.Writer) error {
 
 		if readBuffer == nil || writer == nil {
-			return handler(nil, nil)
+			var zero Req
+			return handler(zero, nil)
 		}
 
 		reqs, err := snail_parser.ParseAll[Req](readBuffer, parseFunc)
@@ -82,11 +83,11 @@ func newTcpServerConnHandler[Req any, Resp any](
 		// A mutex is likely to be faster than a channel here, since we are
 		// dealing with n multiplexed requests over a single connection.
 		// They are likely to be in the range of 1-1000.
-		writeRespFunc := func(resp *Resp) error {
+		writeRespFunc := func(resp Resp) error {
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
 
-			if err := writeFunc(writeBuffer, *resp); err != nil {
+			if err := writeFunc(writeBuffer, resp); err != nil {
 				return fmt.Errorf("failed to write response: %w", err)
 			}
 
@@ -107,7 +108,7 @@ func newTcpServerConnHandler[Req any, Resp any](
 		}
 
 		for _, req := range reqs {
-			if err := handler(&req, writeRespFunc); err != nil {
+			if err := handler(req, writeRespFunc); err != nil {
 				return fmt.Errorf("failed to handle request: %w", err)
 			}
 		}

@@ -28,15 +28,15 @@ func TestNewServer_SendAndRespondWithJson(t *testing.T) {
 
 	server, err := NewServer[requestStruct, responseStruct](
 		func() ServerConnHandler[requestStruct, responseStruct] {
-			return func(req *requestStruct, repFunc func(resp *responseStruct) error) error {
+			return func(req requestStruct, repFunc func(resp responseStruct) error) error {
 
-				if req == nil || repFunc == nil {
+				if repFunc == nil {
 					slog.Warn("Client disconnected")
 					return nil
 				}
 
 				slog.Info("Server received request", slog.String("msg", req.Msg))
-				return repFunc(&responseStruct{Msg: "Hello from server"})
+				return repFunc(responseStruct{Msg: "Hello from server"})
 			}
 		},
 		nil,
