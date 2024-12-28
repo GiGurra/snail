@@ -63,7 +63,25 @@ func (s *SnailClient[Req, Resp]) Send(r Req) error {
 	defer s.convertBuf.Reset()
 
 	if err := s.writeFunc(s.convertBuf, r); err != nil {
-		return fmt.Errorf("failed to write request: %w", err)
+		return fmt.Errorf("failed to serialize request: %w", err)
+	}
+
+	if err := s.underlying.SendBytes(s.convertBuf.UnderlyingReadable()); err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SnailClient[Req, Resp]) SendBatch(rs []Req) error {
+	s.writeMutex.Lock()
+	defer s.writeMutex.Unlock()
+	defer s.convertBuf.Reset()
+
+	for _, r := range rs {
+		if err := s.writeFunc(s.convertBuf, r); err != nil {
+			return fmt.Errorf("failed to serialize request: %w", err)
+		}
 	}
 
 	if err := s.underlying.SendBytes(s.convertBuf.UnderlyingReadable()); err != nil {

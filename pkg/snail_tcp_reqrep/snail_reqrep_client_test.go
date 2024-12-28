@@ -389,6 +389,113 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 
 }
 
+func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_goroutines(t *testing.T) {
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	slog.Info("TestNewServer_SendAndRespondWithInts")
+
+	testLength := 1 * time.Second
+	nGoRoutines := 512
+
+	codec := snail_parser.NewInt32Codec()
+
+	server, err := NewServer[int32, int32](
+		func() ServerConnHandler[int32, int32] {
+			return func(req int32, repFunc func(resp int32) error) error {
+
+				if repFunc == nil {
+					//slog.Warn("Client disconnected")
+					return nil
+				}
+
+				//slog.Info("Server received request", slog.String("msg", req.Msg))
+				return repFunc(req)
+			}
+		},
+		nil,
+		codec.Parser,
+		codec.Writer,
+	)
+
+	if err != nil {
+		t.Fatalf("error creating server: %v", err)
+	}
+
+	if server == nil {
+		t.Fatalf("expected server, got nil")
+	}
+
+	defer server.Close()
+
+	clients := make([]*SnailClient[int32, int32], nGoRoutines)
+	//t0 := time.Now()
+
+	sums := make([]int64, nGoRoutines)
+	nReqResps := atomic.Int64{}
+
+	wgWriters := sync.WaitGroup{}
+	wgWriters.Add(nGoRoutines)
+	respHandler := func(resp int32, status ClientStatus) error {
+
+		if resp < 0 {
+			resp = -resp - 1
+			nReqResps.Add(sums[resp])
+			wgWriters.Done()
+			clients[resp].Close()
+			clients[resp] = nil
+			return nil
+		}
+
+		sums[resp] += 1
+
+		return nil
+	}
+
+	for i := 0; i < nGoRoutines; i++ {
+		client, err := NewClient[int32, int32](
+			"localhost",
+			server.Port(),
+			nil,
+			respHandler,
+			codec.Writer,
+			codec.Parser,
+		)
+		if err != nil {
+			t.Fatalf("error creating client: %v", err)
+		}
+		clients[i] = client
+	}
+
+	defer func() {
+		for i := 0; i < nGoRoutines; i++ {
+			if clients[i] != nil {
+				clients[i].Close()
+			}
+		}
+	}()
+
+	slog.Info("Starting chains")
+	//t0 := time.Now()
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+		client := clients[i]
+		err = client.Send(int32(i))
+		if err != nil {
+			panic(fmt.Errorf("error sending request: %v", err))
+		}
+
+		err = client.Send(int32(-i - 1))
+		if err != nil {
+			panic(fmt.Errorf("error sending request: %v", err))
+		}
+	})
+
+	slog.Info("Waiting for chains to finish")
+	wgWriters.Wait()
+
+	slog.Info(fmt.Sprintf("Sent requests and received %v responses in %v", prettyInt3Digits(nReqResps.Load()), testLength))
+
+}
+
 var prettyPrinter = message.NewPrinter(language.English)
 
 func prettyInt3Digits(n int64) string {
