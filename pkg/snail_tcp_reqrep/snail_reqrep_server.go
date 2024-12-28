@@ -2,8 +2,10 @@ package snail_tcp_reqrep
 
 import (
 	"fmt"
+	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
+	"io"
 )
 
 // ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
@@ -26,9 +28,11 @@ func NewServer[Req any, Rep any](
 	writeFunc snail_parser.WriteFunc[Rep],
 ) (*SnailServer[Req, Rep], error) {
 
-	// TODO: Implement the handler func bridge and worker pool
+	newTcpHandlerFunc := func() snail_tcp.ServerConnHandler {
+		return newTcpServerConnHandler[Req, Rep](newHandlerFunc, parseFunc, writeFunc)
+	}
 
-	underlying, err := snail_tcp.NewServer(nil, tcpOpts)
+	underlying, err := snail_tcp.NewServer(newTcpHandlerFunc, tcpOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create underlying server: %w", err)
 	}
@@ -47,4 +51,35 @@ func (s *SnailServer[Req, Rep]) Underlying() *snail_tcp.SnailServer {
 
 func (s *SnailServer[Req, Rep]) Close() {
 	s.underlying.Close()
+}
+
+func newTcpServerConnHandler[Req any, Rep any](
+	newHandlerFunc func() ServerConnHandler[Req, Rep],
+	parseFunc snail_parser.ParseFunc[Req],
+	writeFunc snail_parser.WriteFunc[Rep],
+) snail_tcp.ServerConnHandler {
+
+	handler := newHandlerFunc()
+
+	tcpHandler := func(buffer *snail_buffer.Buffer, writer io.Writer) error {
+		reqs, err := snail_parser.ParseAll[Req](buffer, parseFunc)
+		if err != nil {
+			return fmt.Errorf("failed to parse requests: %w", err)
+		}
+
+		for _, req := range reqs {
+			if err := handler(&req, func(rep *Rep) error {
+				if err := writeFunc(buffer, *rep); err != nil {
+					return fmt.Errorf("failed to write response: %w", err)
+				}
+				return nil
+			}); err != nil {
+				return fmt.Errorf("failed to handle request: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	return tcpHandler
 }
