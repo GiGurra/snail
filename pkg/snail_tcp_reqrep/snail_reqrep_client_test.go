@@ -1,9 +1,13 @@
 package snail_tcp_reqrep
 
 import (
+	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_parser"
+	"github.com/samber/lo"
+	lop "github.com/samber/lo/parallel"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -267,5 +271,105 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance(t *testing.T) {
 	}
 
 	slog.Info("Sent and received", slog.Int("nReqResps", nReqResps))
+
+}
+
+func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutines(t *testing.T) {
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	slog.Info("TestNewServer_SendAndRespondWithInts")
+
+	testLength := 1 * time.Second
+	nGoRoutines := 512
+
+	codec := snail_parser.NewInt32Codec()
+
+	server, err := NewServer[int32, int32](
+		func() ServerConnHandler[int32, int32] {
+			return func(req int32, repFunc func(resp int32) error) error {
+
+				if repFunc == nil {
+					//slog.Warn("Client disconnected")
+					return nil
+				}
+
+				//slog.Info("Server received request", slog.String("msg", req.Msg))
+				return repFunc(req)
+			}
+		},
+		nil,
+		codec.Parser,
+		codec.Writer,
+	)
+
+	if err != nil {
+		t.Fatalf("error creating server: %v", err)
+	}
+
+	if server == nil {
+		t.Fatalf("expected server, got nil")
+	}
+
+	defer server.Close()
+
+	responseChans := make([]chan int32, nGoRoutines)
+	for i := 0; i < nGoRoutines; i++ {
+		responseChans[i] = make(chan int32, 100)
+	}
+
+	respHandler := func(resp int32, status ClientStatus) error {
+
+		if status == ClientStatusDisconnected {
+			//slog.Warn("Server disconnected")
+			return nil
+		}
+
+		//slog.Info("Client received response", slog.String("msg", resp.Msg))
+		responseChans[resp] <- resp
+		return nil
+	}
+
+	nReqResps := atomic.Int64{}
+
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+		client, err := NewClient[int32, int32](
+			"localhost",
+			server.Port(),
+			nil,
+			respHandler,
+			codec.Writer,
+			codec.Parser,
+		)
+
+		if err != nil {
+			t.Fatalf("error creating client: %v", err)
+		}
+
+		defer client.Close()
+
+		nReqRespsThisRoutine := 0
+		t0 := time.Now()
+		for time.Since(t0) < testLength {
+
+			err = client.Send(int32(i))
+			if err != nil {
+				panic(fmt.Errorf("error sending request: %v", err))
+			}
+
+			select {
+			case resp := <-responseChans[i]:
+				if int(resp) != i {
+					panic(fmt.Errorf("expected response msg %d, got %d", i, resp))
+				}
+				nReqRespsThisRoutine++
+			case <-time.After(1 * time.Second):
+				panic(fmt.Errorf("timeout waiting for response"))
+			}
+		}
+		nReqResps.Add(int64(nReqRespsThisRoutine))
+	})
+
+	slog.Info("Sent and received", slog.Int64("nReqResps", nReqResps.Load()))
 
 }
