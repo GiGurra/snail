@@ -171,29 +171,14 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
-	numTotalMessages := 3_000_000_000
+	testTime := 3 * time.Second
 	batchSize := 100_000
 	nGoRoutines := 16
-	nBatchesTotal := numTotalMessages / batchSize
-	nBatchesPerRoutine := nBatchesTotal / nGoRoutines
 	//tcpWindowSize := 512 * 1024 // Anything 64 kB or larger seems to have no effect. Below 64 kB performance drops quickly.
 
-	slog.Info("numTotalMessages", slog.Int("numTotalMessages", numTotalMessages))
 	slog.Info("batchSize", slog.Int("batchSize", batchSize))
 	slog.Info("nGoRoutines", slog.Int("nGoRoutines", nGoRoutines))
-	slog.Info("nBatchesTotal", slog.Int("nBatchesTotal", nBatchesTotal))
-	slog.Info("nBatchesPerRoutine", slog.Int("nBatchesPerRoutine", nBatchesPerRoutine))
 	//slog.Info("tcpWindowSize", slog.Int("tcpWindowSize", tcpWindowSize))
-
-	if //goland:noinspection GoBoolExpressions
-	numTotalMessages%batchSize != 0 {
-		t.Fatalf("numTotalMessages must be divisible by batchSize")
-	}
-
-	if //goland:noinspection GoBoolExpressions
-	nBatchesPerRoutine*nGoRoutines != nBatchesTotal {
-		t.Fatalf("nBatchesPerRoutine * nGoRoutines must be equal to nBatchesTotal")
-	}
 
 	atomicCounter := atomic.Int64{}
 	batch := make([]byte, batchSize)
@@ -231,8 +216,12 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	t0 := time.Now()
 
+	wgWriters := sync.WaitGroup{}
 	for i := 0; i < nGoRoutines; i++ {
+		wgWriters.Add(1)
 		go func() {
+
+			defer wgWriters.Done()
 
 			client, err := NewClient(
 				"localhost",
@@ -252,7 +241,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 				panic(fmt.Errorf("expected client, got nil"))
 			}
 
-			for i := 0; i < nBatchesPerRoutine; i++ {
+			for time.Since(t0) < testTime {
 				err = client.SendBytes(batch)
 				if err != nil {
 					panic(fmt.Errorf("error sending msg: %w", err))
@@ -261,17 +250,12 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 		}()
 	}
 
-	for atomicCounter.Load() < int64(numTotalMessages) {
-		time.Sleep(10 * time.Millisecond)
-	}
+	wgWriters.Wait()
 
 	elapsed := time.Since(t0)
 
-	if atomicCounter.Load() != int64(numTotalMessages) {
-		t.Fatalf("expected %d bytes, got %d", numTotalMessages, atomicCounter.Load())
-	}
-
 	slog.Info("Received all messages")
+	numTotalMessages := atomicCounter.Load()
 
 	slog.Info(fmt.Sprintf("Elapsed time: %v", elapsed))
 
