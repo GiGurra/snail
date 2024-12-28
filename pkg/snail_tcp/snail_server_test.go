@@ -6,6 +6,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"io"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -70,11 +71,11 @@ func TestNewServer_sendMessageTpServer(t *testing.T) {
 
 }
 
-func TestNewServer_send10mBytes_oneByOne(t *testing.T) {
+func TestNewServer_send_1_GB(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
-	numTotalMessages := 10_000_000
+	numTotalMessages := 1_000_000_000
 	batchSize := 100_000
 	nBatches := numTotalMessages / batchSize
 
@@ -83,7 +84,8 @@ func TestNewServer_send10mBytes_oneByOne(t *testing.T) {
 		t.Fatalf("numTotalMessages must be divisible by batchSize")
 	}
 
-	recvCh := make(chan byte, batchSize)
+	atomicCounter := atomic.Int64{}
+	recvSignal := make(chan byte, 10)
 	batch := make([]byte, batchSize)
 
 	newHandlerFunc := func() ServerConnHandler {
@@ -92,10 +94,12 @@ func TestNewServer_send10mBytes_oneByOne(t *testing.T) {
 				slog.Info("Closing connection")
 				return nil
 			} else {
+				atomicCounter.Add(int64(len(buffer.ReadAll())))
 				//slog.Info("Handler received data")
-				for _, b := range buffer.ReadAll() {
-					recvCh <- b
-				}
+				//for _, b := range buffer.ReadAll() {
+				//	recvCh <- b
+				//}
+				recvSignal <- 1
 				return nil
 			}
 		}
@@ -135,19 +139,17 @@ func TestNewServer_send10mBytes_oneByOne(t *testing.T) {
 		}
 	}()
 
-	nReceived := 0
-	for nReceived < numTotalMessages {
+	for atomicCounter.Load() < int64(numTotalMessages) {
 		select {
-		case _ = <-recvCh:
-			nReceived++
+		case _ = <-recvSignal:
 		case <-time.After(1 * time.Second):
 			t.Fatalf("timeout waiting for message")
 			return
 		}
 	}
 
-	if nReceived != numTotalMessages {
-		t.Fatalf("expected %d bytes, got %d", numTotalMessages, nReceived)
+	if atomicCounter.Load() != int64(numTotalMessages) {
+		t.Fatalf("expected %d bytes, got %d", numTotalMessages, atomicCounter.Load())
 	}
 
 	slog.Info("Received all messages")
