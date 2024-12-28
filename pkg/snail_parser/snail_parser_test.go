@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"log/slog"
+	"math/rand/v2"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -816,4 +817,50 @@ func newRequestTestStructCodec() Codec[requestTestStruct] {
 			return nil
 		},
 	}
+}
+
+func TestReadWriteInt64(t *testing.T) {
+
+	endians := []snail_buffer.Endian{snail_buffer.BigEndian, snail_buffer.LittleEndian}
+
+	firstValue := rand.Int64()
+	secondValue := rand.Int64()
+
+	for _, endian := range endians {
+
+		buffer := snail_buffer.New(endian, 1024)
+		buffer.WriteInt64(firstValue)
+		buffer.WriteInt64(secondValue)
+
+		if buffer.NumBytesReadable() != 16 {
+			t.Fatalf("expected 16 bytes readable, got %v", buffer.NumBytesReadable())
+		}
+
+		first, err := buffer.ReadInt64()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if first != firstValue {
+			t.Fatalf("expected 42, got %v", first)
+		}
+
+		second, err := buffer.ReadInt64()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if second != secondValue {
+			t.Fatalf("expected 43, got %v", second)
+		}
+
+		if buffer.NumBytesReadable() != 0 {
+			t.Fatalf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+		}
+
+		if buffer.ReadPos() != 16 {
+			t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
+		}
+	}
+
 }
