@@ -172,16 +172,17 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	snail_logging.ConfigureDefaultLogger("json", "info", false)
 
 	testTime := 1 * time.Second
-	batchSize := 100_000
 	nGoRoutines := 16
+	writeChunkSize := 512 * 1024
+	readBufSize := 10 * writeChunkSize
 	//tcpWindowSize := 512 * 1024 // Anything 64 kB or larger seems to have no effect. Below 64 kB performance drops quickly.
 
-	slog.Info("batchSize", slog.Int("batchSize", batchSize))
+	slog.Info("writeChunkSize", slog.Int("writeChunkSize", writeChunkSize))
+	slog.Info("readBufSize", slog.Int("readBufSize", readBufSize))
 	slog.Info("nGoRoutines", slog.Int("nGoRoutines", nGoRoutines))
 	//slog.Info("tcpWindowSize", slog.Int("tcpWindowSize", tcpWindowSize))
 
 	atomicCounter := atomic.Int64{}
-	batch := make([]byte, batchSize)
 
 	wrReaders := sync.WaitGroup{}
 	newHandlerFunc := func() ServerConnHandler {
@@ -196,16 +197,14 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 			} else {
 				counter += int64(buffer.NumBytesReadable())
 				buffer.Reset()
-				//slog.Info("Handler received data")
-				//for _, b := range buffer.ReadAll() {
-				//	recvCh <- b
-				//}
 				return nil
 			}
 		}
 	}
 
-	server, err := NewServer(newHandlerFunc, nil)
+	server, err := NewServer(newHandlerFunc, &SnailServerOpts{
+		ReadBufSize: readBufSize,
+	})
 	if err != nil {
 		t.Fatalf("error creating server: %v", err)
 	}
@@ -246,8 +245,9 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 				panic(fmt.Errorf("expected client, got nil"))
 			}
 
+			writeBuf := snail_buffer.New(snail_buffer.BigEndian, writeChunkSize)
 			for time.Since(t0) < testTime {
-				err = client.SendBytes(batch)
+				err = client.SendBytes(writeBuf.UnderlyingWriteable())
 				if err != nil {
 					panic(fmt.Errorf("error sending msg: %w", err))
 				}
@@ -286,8 +286,8 @@ func TestReferenceTcpPerf(t *testing.T) {
 	// This test is a reference test the golang tcp performance.
 	nClients := 16
 	testTime := 1 * time.Second
-	chunkSize := 512 * 1024
-	readBufSize := 10 * chunkSize
+	writeChunkSize := 512 * 1024
+	readBufSize := 10 * writeChunkSize
 
 	// Create a server socket
 	socket, err := net.Listen("tcp", ":0")
@@ -377,7 +377,7 @@ func TestReferenceTcpPerf(t *testing.T) {
 		wgWrite.Add(1)
 		go func() {
 
-			writeBuf := snail_buffer.New(snail_buffer.BigEndian, chunkSize)
+			writeBuf := snail_buffer.New(snail_buffer.BigEndian, writeChunkSize)
 			for time.Since(t0) < testTime {
 
 				if client == nil {
