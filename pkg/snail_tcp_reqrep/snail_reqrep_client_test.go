@@ -484,15 +484,13 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	batchers := make([]*snail_batcher.SnailBatcher[int32], nGoRoutines)
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
-
-		batcher := snail_batcher.NewSnailBatcher[int32](
+		batchers[i] = snail_batcher.NewSnailBatcher[int32](
 			1*time.Second,
 			batchSize,
 			func(values []int32) error {
 				return client.SendBatch(values)
 			},
 		)
-		batchers[i] = batcher
 	})
 
 	slog.Info("Starting senders")
