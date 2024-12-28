@@ -50,6 +50,10 @@ func (s *SnailServer[Req, Resp]) Underlying() *snail_tcp.SnailServer {
 	return s.underlying
 }
 
+func (s *SnailServer[Req, Resp]) Port() int {
+	return s.underlying.Port()
+}
+
 func (s *SnailServer[Req, Resp]) Close() {
 	s.underlying.Close()
 }

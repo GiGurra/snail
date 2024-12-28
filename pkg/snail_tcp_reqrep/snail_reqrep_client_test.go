@@ -50,7 +50,7 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 
 	client, err := NewClient[requestStruct, responseStruct](
 		"localhost",
-		server.Underlying().Port(),
+		server.Port(),
 		nil,
 		respHandler,
 		reqCodec.Writer,
@@ -62,4 +62,5 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 	}
 
 	defer client.Close()
+
 }
