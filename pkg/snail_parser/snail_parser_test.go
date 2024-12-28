@@ -394,6 +394,8 @@ func TestIntParserPerformance(t *testing.T) {
 			if res.Value != int32(i) {
 				panic(fmt.Errorf("unexpected value: %v", res.Value))
 			}
+
+			buffer.Reset()
 		}
 		numReqs++
 	}
@@ -439,6 +441,8 @@ func TestIntParserPerformance_routines(t *testing.T) {
 				if res.Value != int32(i) {
 					panic(fmt.Errorf("unexpected value: %v", res.Value))
 				}
+
+				buffer.Reset()
 			}
 			numReqs++
 		}
@@ -459,13 +463,13 @@ func TestJsonParserPerformance_routines(t *testing.T) {
 	numGoRoutines := 512
 	testLength := 1 * time.Second
 
-	t0 := time.Now()
 	codec := NewJsonLinesCodec[jsonTestStruct]()
 
 	numReqsTot := atomic.Int64{}
 
 	sides := 1
 
+	t0 := time.Now()
 	lop.ForEach(lo.Range(numGoRoutines), func(i int, _ int) {
 		buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
 		numReqs := int64(0)
@@ -501,6 +505,9 @@ func TestJsonParserPerformance_routines(t *testing.T) {
 				}
 				if res.Value.Bar != "bar" {
 					panic(fmt.Errorf("unexpected value: %v", res.Value.Bar))
+				}
+				if cap(buffer.Underlying()) != 1024 {
+					panic(fmt.Errorf("buffer capacity changed: %v", cap(buffer.Underlying())))
 				}
 
 				buffer.Reset()
