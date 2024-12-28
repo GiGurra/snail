@@ -39,7 +39,10 @@ func TestNewServer_sendMessageTpServer(t *testing.T) {
 	}
 
 	slog.Info("Listener port", slog.Int("port", server.Port()))
-	client, err := NewClient("localhost", server.Port(), nil)
+	client, err := NewClient("localhost", server.Port(), nil, func(buffer *snail_buffer.Buffer) error {
+		slog.Info("Client received data")
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("error creating client: %v", err)
 	}

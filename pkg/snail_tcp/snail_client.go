@@ -1,14 +1,20 @@
 package snail_tcp
 
 import (
+	"errors"
 	"fmt"
+	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"log/slog"
 	"net"
 )
 
+// ClientRespHandler is the custom response handler for a client connection.
+type ClientRespHandler func(*snail_buffer.Buffer) error
+
 type SnailClient struct {
-	socket net.Conn
-	opts   SnailClientOpts
+	socket      net.Conn
+	opts        SnailClientOpts
+	respHandler ClientRespHandler
 }
 
 type OptimizationType int
@@ -20,9 +26,10 @@ const (
 
 type SnailClientOpts struct {
 	//MaxConnections int // TODO: implement support for this
-	Optimization OptimizationType
-	ReadBufSize  int // TODO: Make use of?
-	WriteBufSize int // TODO: Make use of?
+	Optimization        OptimizationType
+	ReadBufSize         int
+	MaxBufferedRespData int // TODO: Make use of?
+	WriteBufSize        int // TODO: Make use of?
 }
 
 func (o SnailClientOpts) WithDefaults() SnailClientOpts {
@@ -40,6 +47,7 @@ func NewClient(
 	ip string,
 	port int,
 	optsIn *SnailClientOpts,
+	respHandler ClientRespHandler,
 ) (*SnailClient, error) {
 	socket, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ip, port))
 	opts := func() SnailClientOpts {
@@ -65,10 +73,49 @@ func NewClient(
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to set TCP_NODELAY: %v. Proceeding anyway :S", err))
 	}
-	return &SnailClient{
-		socket: socket,
-		opts:   opts,
-	}, nil
+
+	res := &SnailClient{
+		socket:      socket,
+		opts:        opts,
+		respHandler: respHandler,
+	}
+
+	go res.loopRespListener()
+
+	return res, nil
+}
+
+func (c *SnailClient) loopRespListener() {
+
+	readBuffer := snail_buffer.New(snail_buffer.BigEndian, c.opts.ReadBufSize)
+
+	for {
+
+		// TODO: Respect c.opts.MaxBufferedRespData
+
+		readBuffer.EnsureSpareCapacity(c.opts.ReadBufSize)
+		n, err := c.socket.Read(readBuffer.UnderlyingWriteable())
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				slog.Debug("Client socket is closed, shutting down client")
+				return
+			} else {
+				slog.Error(fmt.Sprintf("Failed to read bytes from socket, assuming connection broken, bailing: %v", err))
+				return
+			}
+		}
+		if n <= 0 {
+			slog.Error(fmt.Sprintf("Failed to read bytes from socket, n <= 0, bailing"))
+			return
+		}
+		readBuffer.AddWritten(n)
+
+		err = c.respHandler(readBuffer)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to handle response, assuming state broken, bailing: %v", err))
+			return
+		}
+	}
 }
 
 func (c *SnailClient) Close() {

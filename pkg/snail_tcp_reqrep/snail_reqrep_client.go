@@ -9,24 +9,21 @@ import (
 	"sync"
 )
 
-// ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
-type ServerConnHandler[Req any, Resp any] func(
-	req *Req,
-	repFunc func(resp *Resp) error,
-) error
+// ClientRespHandler is the custom response handler for a client connection.
+type ClientRespHandler[Rep any] func(rep *Rep) error
 
-type SnailServer[Req any, Resp any] struct {
-	underlying     *snail_tcp.SnailServer
-	newHandlerFunc func() ServerConnHandler[Req, Resp]
-	parseFunc      snail_parser.ParseFunc[Req]
-	writeFunc      snail_parser.WriteFunc[Resp]
+type SnailClient[Req any, Resp any] struct {
+	underlying  *snail_tcp.SnailClient
+	handlerFunc ClientRespHandler[Resp]
+	writeFunc   snail_parser.WriteFunc[Req]
+	parseFunc   snail_parser.ParseFunc[Resp]
 }
 
-func NewServer[Req any, Resp any](
-	newHandlerFunc func() ServerConnHandler[Req, Resp],
-	tcpOpts *snail_tcp.SnailServerOpts,
-	parseFunc snail_parser.ParseFunc[Req],
-	writeFunc snail_parser.WriteFunc[Resp],
+func NewClient[Req any, Resp any](
+	tcpOpts *snail_tcp.SnailClientOpts,
+	handlerFunc ClientRespHandler[Resp],
+	writeFunc snail_parser.WriteFunc[Req],
+	parseFunc snail_parser.ParseFunc[Resp],
 ) (*SnailServer[Req, Resp], error) {
 
 	newTcpHandlerFunc := func() snail_tcp.ServerConnHandler {
@@ -46,18 +43,17 @@ func NewServer[Req any, Resp any](
 	}, nil
 }
 
-func (s *SnailServer[Req, Resp]) Underlying() *snail_tcp.SnailServer {
+func (s *SnailClient[Req, Resp]) Underlying() *snail_tcp.SnailServer {
 	return s.underlying
 }
 
-func (s *SnailServer[Req, Resp]) Close() {
+func (s *SnailClient[Req, Resp]) Close() {
 	s.underlying.Close()
 }
 
-func newTcpServerConnHandler[Req any, Resp any](
+func newTcpClientRespHandler[Req any, Resp any](
 	newHandlerFunc func() ServerConnHandler[Req, Resp],
-	parseFunc snail_parser.ParseFunc[Req],
-	writeFunc snail_parser.WriteFunc[Resp],
+	parseFunc snail_parser.ParseFunc[Resp],
 ) snail_tcp.ServerConnHandler {
 
 	handler := newHandlerFunc()
@@ -78,11 +74,11 @@ func newTcpServerConnHandler[Req any, Resp any](
 		// A mutex is likely to be faster than a channel here, since we are
 		// dealing with n multiplexed requests over a single connection.
 		// They are likely to be in the range of 1-1000.
-		writeRespFunc := func(resp *Resp) error {
+		writeRespFunc := func(rep *Resp) error {
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
 
-			if err := writeFunc(writeBuffer, *resp); err != nil {
+			if err := writeFunc(writeBuffer, *rep); err != nil {
 				return fmt.Errorf("failed to write response: %w", err)
 			}
 
