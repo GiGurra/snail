@@ -447,8 +447,6 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 			resp = -resp - 1
 			nReqResps.Add(sums[resp])
 			wgWriters.Done()
-			clients[resp].Close()
-			clients[resp] = nil
 			return nil
 		}
 
