@@ -6,6 +6,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"io"
+	"sync"
 )
 
 // ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
@@ -61,6 +62,7 @@ func newTcpServerConnHandler[Req any, Rep any](
 
 	handler := newHandlerFunc()
 	writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+	writeMutex := sync.Mutex{}
 
 	tcpHandler := func(readBuffer *snail_buffer.Buffer, writer io.Writer) error {
 
@@ -73,9 +75,13 @@ func newTcpServerConnHandler[Req any, Rep any](
 			return fmt.Errorf("failed to parse requests: %w", err)
 		}
 
-		// TODO: Handle multi threading for the response :S
-		// channels? Something else?
+		// A mutex is likely to be faster than a channel here, since we are
+		// dealing with n multiplexed requests over a single connection.
+		// They are likely to be in the range of 1-1000.
 		writeRespFunc := func(rep *Rep) error {
+			writeMutex.Lock()
+			defer writeMutex.Unlock()
+
 			if err := writeFunc(writeBuffer, *rep); err != nil {
 				return fmt.Errorf("failed to write response: %w", err)
 			}
