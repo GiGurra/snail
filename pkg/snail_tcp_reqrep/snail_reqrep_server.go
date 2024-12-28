@@ -62,6 +62,11 @@ func newTcpServerConnHandler[Req any, Rep any](
 	handler := newHandlerFunc()
 
 	tcpHandler := func(buffer *snail_buffer.Buffer, writer io.Writer) error {
+
+		if buffer == nil || writer == nil {
+			return handler(nil, nil)
+		}
+
 		reqs, err := snail_parser.ParseAll[Req](buffer, parseFunc)
 		if err != nil {
 			return fmt.Errorf("failed to parse requests: %w", err)
