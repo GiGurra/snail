@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"io"
 	"log/slog"
 	"sync/atomic"
@@ -228,6 +230,8 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 
 	slog.Info("Sending all bytes")
 
+	t0 := time.Now()
+
 	for i := 0; i < nGoRoutines; i++ {
 		go func() {
 
@@ -269,10 +273,25 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 		}
 	}
 
+	elapsed := time.Since(t0)
+
 	if atomicCounter.Load() != int64(numTotalMessages) {
 		t.Fatalf("expected %d bytes, got %d", numTotalMessages, atomicCounter.Load())
 	}
 
 	slog.Info("Received all messages")
 
+	slog.Info(fmt.Sprintf("Elapsed time: %v", elapsed))
+
+	bytesPerSecond := float64(numTotalMessages) / elapsed.Seconds()
+
+	slog.Info(fmt.Sprintf("Bytes per second: %v", prettyInt3Digits(int64(bytesPerSecond))))
+	slog.Info(fmt.Sprintf("Bits per second: %v", prettyInt3Digits(int64(bytesPerSecond*8))))
+
+}
+
+var prettyPrinter = message.NewPrinter(language.English)
+
+func prettyInt3Digits(n int64) string {
+	return prettyPrinter.Sprintf("%d", n)
 }
