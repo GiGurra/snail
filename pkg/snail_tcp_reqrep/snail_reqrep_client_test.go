@@ -44,6 +44,12 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 	defer server.Close()
 
 	respHandler := func(resp *responseStruct) error {
+
+		if resp == nil {
+			slog.Warn("Server disconnected")
+			return nil
+		}
+
 		slog.Info("Client received response", slog.String("msg", resp.Msg))
 		return nil
 	}
