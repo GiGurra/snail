@@ -29,6 +29,12 @@ func TestNewServer_SendAndRespondWithJson(t *testing.T) {
 	server, err := NewServer[requestStruct, responseStruct](
 		func() ServerConnHandler[requestStruct, responseStruct] {
 			return func(req *requestStruct, repFunc func(resp *responseStruct) error) error {
+
+				if req == nil || repFunc == nil {
+					slog.Warn("Client disconnected")
+					return nil
+				}
+
 				slog.Info("Server received request", slog.String("msg", req.Msg))
 				return repFunc(&responseStruct{Msg: "Hello from server"})
 			}
@@ -42,11 +48,11 @@ func TestNewServer_SendAndRespondWithJson(t *testing.T) {
 		t.Fatalf("error creating server: %v", err)
 	}
 
-	defer server.Close()
-
 	if server == nil {
 		t.Fatalf("expected server, got nil")
 	}
+
+	defer server.Close()
 
 	// Open a socket to the server and send a request
 	sock, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", server.Underlying().Port()))
