@@ -316,32 +316,13 @@ func TestReferenceTcpPerf(t *testing.T) {
 	port := socket.Addr().(*net.TCPAddr).Port
 
 	slog.Info("Listener port", slog.Int("port", port))
-	//
-	//// create clients
-	//clients := make([]*net.TCPConn, nClients)
-	//for i := 0; i < nClients; i++ {
-	//	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
-	//	if err != nil {
-	//		t.Fatalf("error creating client: %v", err)
-	//	}
-	//	clients[i] = conn.(*net.TCPConn)
-	//}
-	//defer func() {
-	//	for _, conn := range clients {
-	//		if conn != nil {
-	//			_ = conn.Close()
-	//		}
-	//	}
-	//}()
+
 	// create clients
 	clients := make([]*SnailClient, nClients)
 	for i := 0; i < nClients; i++ {
 		client, err := NewClient(
 			"localhost",
 			port,
-			//&SnailClientOpts{
-			//	TcpSendWindowSize: tcpWindowSize,
-			//},
 			nil,
 			func(buffer *snail_buffer.Buffer) error {
 				slog.Error("Client received response data, should not happen in this test")
