@@ -76,4 +76,6 @@ func TestNewServer_SendAndRespondWithJson(t *testing.T) {
 	if resp.Msg != "Hello from server" {
 		t.Fatalf("expected response 'Hello from server', got '%s'", resp.Msg)
 	}
+
+	slog.Info("Received response", slog.String("msg", resp.Msg))
 }
