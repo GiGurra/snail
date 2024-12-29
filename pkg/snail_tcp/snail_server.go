@@ -129,7 +129,7 @@ func (s *SnailServer) loopConnection(conn net.Conn) {
 
 	for {
 
-		err := ReadToBuffer(s.opts.ReadBufSize, conn, accumBuf)
+		err := ReadToBuffer(s.opts.ReadBufSize/5, conn, accumBuf)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				slog.Debug("EOF, closing connection")

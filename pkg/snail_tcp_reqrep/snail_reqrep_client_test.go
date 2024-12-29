@@ -7,6 +7,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_parser"
+	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
@@ -719,6 +720,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	testLength := 1 * time.Second
 	nGoRoutines := 12
 	batchSize := 5 * 1024
+	readBufSize := 128 * 1024
 
 	codec := newRequestTestStructCodec()
 
@@ -731,7 +733,9 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 				return repFunc(req)
 			}
 		},
-		nil,
+		&snail_tcp.SnailServerOpts{
+			ReadBufSize: readBufSize,
+		},
 		codec.Parser,
 		codec.Writer,
 		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
@@ -771,7 +775,9 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		client, err := NewClient[*requestTestStruct, *requestTestStruct](
 			"localhost",
 			server.Port(),
-			nil,
+			&snail_tcp.SnailClientOpts{
+				ReadBufSize: readBufSize,
+			},
 			respHandler,
 			codec.Writer,
 			codec.Parser,
