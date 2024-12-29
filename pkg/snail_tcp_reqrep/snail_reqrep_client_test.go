@@ -5,7 +5,6 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_parser"
-	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
@@ -403,26 +402,19 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	testLength := 1 * time.Second
 	nGoRoutines := 512
 	batchSize := 5 * 1024
-	optimization := snail_tcp.OptimizeForThroughput
 
 	codec := snail_parser.NewInt32Codec()
 
 	server, err := NewServer[int32, int32](
 		func() ServerConnHandler[int32, int32] {
 			return func(req int32, repFunc func(resp int32) error) error {
-
 				if repFunc == nil {
-					//slog.Warn("Client disconnected")
 					return nil
 				}
-
-				//slog.Info("Server received request", slog.String("msg", req.Msg))
 				return repFunc(req)
 			}
 		},
-		&snail_tcp.SnailServerOpts{
-			Optimization: optimization,
-		},
+		nil,
 		codec.Parser,
 		codec.Writer,
 		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
@@ -439,7 +431,6 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	defer server.Close()
 
 	clients := make([]*SnailClient[int32, int32], nGoRoutines)
-	//t0 := time.Now()
 
 	sums := make([]int64, nGoRoutines)
 	nReqResps := atomic.Int64{}
@@ -464,9 +455,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		client, err := NewClient[int32, int32](
 			"localhost",
 			server.Port(),
-			&snail_tcp.SnailClientOpts{
-				Optimization: optimization,
-			},
+			nil,
 			respHandler,
 			codec.Writer,
 			codec.Parser,
