@@ -72,8 +72,7 @@ func (sb *SnailBatcher[T]) workerLoop() {
 	// This isn't perfect, but it's FAST, really fast :)
 	go func() {
 		for range ticker.C {
-			if !sb.HasPendingTick.Load() {
-				sb.HasPendingTick.Store(true)
+			if sb.HasPendingTick.CompareAndSwap(false, true) {
 				sb.inputChan <- queueItem[T]{Type: queueItemTicFlush}
 			}
 		}
