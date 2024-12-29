@@ -3,13 +3,12 @@ package snail_batcher
 import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_logging"
+	"github.com/GiGurra/snail/pkg/snail_test_util"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"log/slog"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -213,59 +212,47 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 
 	testLength := 1 * time.Second
 	batchSize := 1000 // 10 000 seems to be the sweet spot
-	nGoRoutines := 1000
+	nGoRoutines := 1
 
-	nProcessed := 0
-
-	wgReceivedAll := sync.WaitGroup{}
-	wgReceivedAll.Add(nGoRoutines)
+	nReceived := 0
 	batcher := NewSnailBatcher[int](
 		1*time.Minute, // dont want the tickers interfering
 		batchSize,
 		batchSize*5,
 		false,
 		func(values []int) error {
-			nProcessed += len(values)
-			for _, val := range values {
-				if val == -1 {
-					wgReceivedAll.Done()
-				}
-			}
+			nReceived += len(values)
 			return nil
 		},
 	)
 	defer batcher.Close()
 
-	sendIsOngoing := atomic.Bool{}
-	sendIsOngoing.Store(true)
-	go func() {
-		time.Sleep(testLength)
-		sendIsOngoing.Store(false)
-	}()
+	sendIsOngoing := snail_test_util.TrueForTimeout(testLength)
 
 	t0 := time.Now()
 
-	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+	nSent := lo.Sum(lop.Map(lo.Range(nGoRoutines), func(i int, _ int) int64 {
+		nSentThisRoutine := int64(0)
 		for sendIsOngoing.Load() {
 			batcher.Add(i)
+			nSentThisRoutine++
 		}
-		batcher.Add(-1)
-	})
+		batcher.Flush()
+		return nSentThisRoutine
+	}))
 
-	batcher.Flush()
-
-	slog.Info("waiting for results")
-
-	wgReceivedAll.Wait()
-
-	slog.Info("all results received")
+	slog.Info("Done sending, measuring how much we have received")
 
 	timeElapsed := time.Since(t0)
 
-	rate := float64(nProcessed) / timeElapsed.Seconds()
+	receiveRate := float64(nReceived) / timeElapsed.Seconds()
+	sendRate := float64(nSent) / timeElapsed.Seconds()
 
-	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(int64(nProcessed)), timeElapsed))
-	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
+	slog.Info(fmt.Sprintf("Received %s items in %s", prettyInt3Digits(int64(nReceived)), timeElapsed))
+	slog.Info(fmt.Sprintf("Receive Rate: %s items/sec", prettyInt3Digits(int64(receiveRate))))
+
+	slog.Info(fmt.Sprintf("Sent %s items in %s", prettyInt3Digits(int64(nSent)), timeElapsed))
+	slog.Info(fmt.Sprintf("Send Rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 }
 
 func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
