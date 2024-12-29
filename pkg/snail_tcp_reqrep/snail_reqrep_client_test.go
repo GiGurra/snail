@@ -509,11 +509,14 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 
 	elapsed := time.Since(t0)
 
-	slog.Info(fmt.Sprintf("Sent requests and received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsed))
+	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), testLength))
+	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsed))
 
-	rate := float64(nReqResps.Load()) / elapsed.Seconds()
+	respRate := float64(nReqResps.Load()) / elapsed.Seconds()
+	sendRate := float64(nReqResps.Load()) / testLength.Seconds()
 
-	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
+	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
+	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 
 }
 
