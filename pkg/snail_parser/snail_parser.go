@@ -37,7 +37,8 @@ func ParseAll[T any](
 	buffer *snail_buffer.Buffer,
 	parseFunc ParseFunc[T],
 ) ([]T, error) {
-	var results []T
+	results := make([]T, 0, 8) // 4-16 seems ok
+	//var results []T
 	for {
 		bufferReadPosBefore := buffer.ReadPos()
 		result := parseFunc(buffer)
