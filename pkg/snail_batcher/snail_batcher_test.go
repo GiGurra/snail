@@ -24,24 +24,27 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 
 	resultsChannel := make(chan []int, nExpectedResults)
 
-	batcher := NewSnailBatcher[int](
-		10*time.Millisecond, // simulate a 10ms window
-		batchSize,
-		batchSize*2,
-		func(values []int) error {
-			resultsChannel <- values
-			return nil
-		},
-	)
-	defer batcher.Close()
-
 	t0 := time.Now()
 	go func() {
+
+		batcher := NewSnailBatcher[int](
+			1*time.Minute, // dont want the tickers interfering
+			batchSize,
+			batchSize*2,
+			func(values []int) error {
+				resultsChannel <- values
+				return nil
+			},
+		)
+		defer batcher.Close()
+
 		lop.ForEach(lo.Range(nGoRoutines), func(_ int, _ int) {
 			for i := 0; i < nItems/nGoRoutines; i++ {
 				batcher.Add(i)
 			}
 		})
+
+		batcher.Flush()
 	}()
 
 	slog.Info("waiting for results")
