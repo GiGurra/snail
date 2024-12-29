@@ -482,8 +482,9 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 			1*time.Minute,
 			batchSize,
 			batchSize*2,
+			false,
 			func(values []int32) error {
-				return client.SendBatch(values)
+				return client.SendBatchUnsafe(values)
 			},
 		)
 	})

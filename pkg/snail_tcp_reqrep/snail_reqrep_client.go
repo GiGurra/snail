@@ -76,6 +76,13 @@ func (s *SnailClient[Req, Resp]) Send(r Req) error {
 func (s *SnailClient[Req, Resp]) SendBatch(rs []Req) error {
 	s.writeMutex.Lock()
 	defer s.writeMutex.Unlock()
+	return s.SendBatchUnsafe(rs)
+}
+
+// SendBatchUnsafe sends a batch of requests without locking the write mutex.
+// This should only be used if the caller is sure that no other goroutine is
+// using this client.
+func (s *SnailClient[Req, Resp]) SendBatchUnsafe(rs []Req) error {
 	defer s.convertBuf.Reset()
 
 	for _, r := range rs {

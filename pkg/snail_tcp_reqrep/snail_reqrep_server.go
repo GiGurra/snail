@@ -141,6 +141,7 @@ func newTcpServerConnHandler[Req any, Resp any](
 			batcherOpts.WindowSize,
 			batcherOpts.BatchSize,
 			batcherOpts.QueueSize,
+			false,
 			func(resps []Resp) error {
 
 				// We don't need a mutex to protect the writeBuffer here, since

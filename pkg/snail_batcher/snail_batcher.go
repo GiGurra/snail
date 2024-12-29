@@ -8,12 +8,13 @@ import (
 )
 
 type SnailBatcher[T any] struct {
-	batchSize      int
-	batch          []T
-	HasPendingTick atomic.Bool
-	inputChan      chan queueItem[T]
-	windowSize     time.Duration
-	outputFunc     func([]T) error
+	batchSize       int
+	threadSafeFlush bool
+	batch           []T
+	HasPendingTick  atomic.Bool
+	inputChan       chan queueItem[T]
+	windowSize      time.Duration
+	outputFunc      func([]T) error
 }
 
 // Turns out it is faster just having everything in one queue/channel
@@ -35,14 +36,16 @@ func NewSnailBatcher[T any](
 	windowSize time.Duration,
 	batchSize int,
 	queueSize int,
+	threadSafeFlush bool, // false, means we will not copy the batch slice, but re-use an internal buffer
 	outputFunc func([]T) error,
 ) *SnailBatcher[T] {
 	res := &SnailBatcher[T]{
-		batchSize:  batchSize,
-		batch:      make([]T, 0, batchSize),
-		inputChan:  make(chan queueItem[T], queueSize),
-		windowSize: windowSize,
-		outputFunc: outputFunc,
+		batchSize:       batchSize,
+		threadSafeFlush: threadSafeFlush,
+		batch:           make([]T, 0, batchSize),
+		inputChan:       make(chan queueItem[T], queueSize),
+		windowSize:      windowSize,
+		outputFunc:      outputFunc,
 	}
 
 	go res.workerLoop()
@@ -113,7 +116,12 @@ func (sb *SnailBatcher[T]) flush(isTick bool) {
 
 tryAgain:
 
-	err := sb.outputFunc(copyArray(sb.batch))
+	var err error
+	if sb.threadSafeFlush {
+		err = sb.outputFunc(copyArray(sb.batch))
+	} else {
+		err = sb.outputFunc(sb.batch)
+	}
 	if err != nil {
 		slog.Error(fmt.Sprintf("error when flushing batch: %v", err))
 		time.Sleep(1 * time.Second)
