@@ -68,20 +68,18 @@ func (sb *SnailBatcher[T]) addUnsafe(item T) {
 	}
 }
 
-var useIdiotMutex = isMacOS()
-
-func isMacOS() bool {
-	return runtime.GOOS == "darwin"
-}
+// Much faster, but no fifo or fairness attempts.
+const useIdiotMutex = true
 
 func (sb *SnailBatcher[T]) lockMutex() {
 
 	if //goland:noinspection GoBoolExpressions
 	useIdiotMutex {
 
-		// macos locks are incredibly slow. The numbers below are just
-		// empirical values that seem to work well. :S.
+		// MacOS locks are incredibly slow. The numbers below are just
+		// empirically found values that seem to work well. :S.
 		// Regular locks at low contention are 10x slower than the idiotMutex below.
+		// The difference on linux is not as big, but still significant.
 		for !sb.lock.TryLock() {
 			if rand.Float32() < 0.001 {
 				time.Sleep(1 * time.Microsecond)
