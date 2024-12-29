@@ -45,6 +45,8 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 		})
 
 		batcher.Flush()
+
+		resultsChannel <- make([]int, nItems%nGoRoutines)
 	}()
 
 	slog.Info("waiting for results")
@@ -106,6 +108,8 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 			batcher.Flush()
 		})
 
+		resultsChannel <- make([]int, nItems%nGoRoutines)
+
 	}()
 
 	slog.Info("waiting for results")
@@ -166,12 +170,9 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 			}
 		})
 
-		rest := nItems % nGoRoutines
-		for i := 0; i < rest; i++ {
-			batcher.Add(i)
-		}
-
 		batcher.Flush()
+
+		resultsChannel <- make([]int, nItems%nGoRoutines)
 
 	}()
 
