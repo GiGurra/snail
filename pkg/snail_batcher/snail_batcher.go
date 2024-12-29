@@ -91,21 +91,21 @@ func (sb *SnailBatcher[T]) workerLoop() {
 		case queueItemAdd:
 			sb.batch = append(sb.batch, item.Item)
 			if len(sb.batch) >= sb.batchSize {
-				sb.flush(false)
+				sb.flush(false, true)
 			}
 		case queueItemManualFlush:
-			sb.flush(false)
+			sb.flush(false, true)
 		case queueItemTicFlush:
-			sb.flush(true)
+			sb.flush(true, true)
 		case queueItemClose:
-			sb.flush(false)
-			slog.Debug("closing batcher")
+			slog.Debug("flushing and closing batcher")
+			sb.flush(false, false)
 			return
 		}
 	}
 }
 
-func (sb *SnailBatcher[T]) flush(isTick bool) {
+func (sb *SnailBatcher[T]) flush(isTick bool, retryAllowed bool) {
 	if isTick {
 		defer sb.HasPendingTick.Store(false)
 	}
@@ -124,8 +124,10 @@ tryAgain:
 	}
 	if err != nil {
 		slog.Error(fmt.Sprintf("error when flushing batch: %v", err))
-		time.Sleep(1 * time.Second)
-		goto tryAgain
+		if retryAllowed {
+			time.Sleep(1 * time.Second)
+			goto tryAgain
+		}
 	}
 
 	sb.batch = sb.batch[:0]
