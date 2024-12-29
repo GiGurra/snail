@@ -146,7 +146,7 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
 	testLength := 1 * time.Second
-	batchSize := 1000 // 10 000 seems to be the sweet spot
+	batchSize := 1000
 	nGoRoutines := 1000
 
 	nReceived := 0
