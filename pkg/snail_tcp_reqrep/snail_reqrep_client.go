@@ -60,6 +60,12 @@ func (s *SnailClient[Req, Resp]) Close() {
 func (s *SnailClient[Req, Resp]) Send(r Req) error {
 	s.writeMutex.Lock()
 	defer s.writeMutex.Unlock()
+	return s.SendUnsafe(r)
+}
+
+// SendUnsafe sends a request without locking the write mutex. This should only
+// be used if the caller is sure that no other goroutine is using this client.
+func (s *SnailClient[Req, Resp]) SendUnsafe(r Req) error {
 	defer s.convertBuf.Reset()
 
 	if err := s.writeFunc(s.convertBuf, r); err != nil {
