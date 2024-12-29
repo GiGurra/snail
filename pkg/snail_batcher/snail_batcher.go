@@ -13,7 +13,6 @@ type SnailBatcher[T any] struct {
 	HasPendingTick atomic.Bool
 	inputChan      chan queueItem[T]
 	windowSize     time.Duration
-	nextWindow     time.Time
 	outputFunc     func([]T) error
 }
 
@@ -43,7 +42,6 @@ func NewSnailBatcher[T any](
 		batch:      make([]T, 0, batchSize),
 		inputChan:  make(chan queueItem[T], queueSize),
 		windowSize: windowSize,
-		nextWindow: time.Now().Add(windowSize),
 		outputFunc: outputFunc,
 	}
 
@@ -123,9 +121,6 @@ tryAgain:
 	}
 
 	sb.batch = sb.batch[:0]
-
-	// do something with the inputChan
-	sb.nextWindow = time.Now().Add(sb.windowSize)
 }
 
 func copyArray[T any](arr []T) []T {
