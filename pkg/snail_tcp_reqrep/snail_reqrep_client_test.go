@@ -475,7 +475,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		}
 	}()
 
-	slog.Info("Creating batchers")
+	slog.Info("Creating client batchers")
 	batchers := make([]*snail_batcher.SnailBatcher[int32], nGoRoutines)
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
@@ -483,6 +483,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 			1*time.Minute,
 			batchSize,
 			batchSize*2,
+			true,
 			func(values []int32) error {
 				return client.SendBatchUnsafe(values)
 			},
@@ -626,6 +627,7 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 			1*time.Minute,
 			batchSize,
 			batchSize*2,
+			true,
 			func(values []stupidJsonStruct) error {
 				return client.SendBatchUnsafe(values)
 			},

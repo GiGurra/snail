@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -29,7 +30,9 @@ type SnailBatcher[T any] struct {
 	batchChan    chan []T
 	pendingBatch []T
 
-	lock sync.Mutex
+	lock         sync.Mutex
+	idiotLock    atomic.Bool
+	useIdiotLock bool
 
 	windowSize time.Duration
 	outputFunc func([]T) error
@@ -39,6 +42,7 @@ func NewSnailBatcher[T any](
 	windowSize time.Duration,
 	batchSize int,
 	queueSize int,
+	useIdiotLock bool, // improves performance for clients under high throughput, mostly on macos
 	outputFunc func([]T) error,
 ) *SnailBatcher[T] {
 	res := &SnailBatcher[T]{
@@ -46,6 +50,7 @@ func NewSnailBatcher[T any](
 		queueSize:    queueSize,
 		batchChan:    make(chan []T, max(2, queueSize/batchSize)), // some reasonable back pressure
 		pendingBatch: make([]T, 0, batchSize),                     // TODO: Improve the perf with circular buffer? Or slice pool?
+		useIdiotLock: useIdiotLock,
 		windowSize:   windowSize,
 		outputFunc:   outputFunc,
 	}
@@ -57,7 +62,7 @@ func NewSnailBatcher[T any](
 
 func (sb *SnailBatcher[T]) Add(item T) {
 	sb.lockMutex()
-	defer sb.lock.Unlock()
+	defer sb.unlockMutex()
 	sb.addUnsafe(item)
 }
 
@@ -69,18 +74,19 @@ func (sb *SnailBatcher[T]) addUnsafe(item T) {
 }
 
 // Much faster, but no fifo or fairness attempts.
-const useIdiotMutex = true
+//const useIdiotLock = true
 
 func (sb *SnailBatcher[T]) lockMutex() {
 
 	if //goland:noinspection GoBoolExpressions
-	useIdiotMutex {
+	sb.useIdiotLock {
 
 		// MacOS locks are incredibly slow. The numbers below are just
 		// empirically found values that seem to work well. :S.
 		// Regular locks at low contention are 10x slower than the idiotMutex below.
 		// The difference on linux is not as big, but still significant.
-		for !sb.lock.TryLock() {
+		for !sb.idiotLock.CompareAndSwap(false, true) {
+			//slog.Warn("idiotMutex contention")
 			if rand.Float32() < 0.001 {
 				time.Sleep(1 * time.Microsecond)
 			} else {
@@ -93,9 +99,18 @@ func (sb *SnailBatcher[T]) lockMutex() {
 	}
 }
 
+func (sb *SnailBatcher[T]) unlockMutex() {
+	if //goland:noinspection GoBoolExpressions
+	sb.useIdiotLock {
+		sb.idiotLock.Store(false)
+	} else {
+		sb.lock.Unlock()
+	}
+}
+
 func (sb *SnailBatcher[T]) AddMany(items []T) {
 	sb.lockMutex()
-	defer sb.lock.Unlock()
+	defer sb.unlockMutex()
 	for _, item := range items {
 		sb.addUnsafe(item)
 	}
@@ -103,7 +118,7 @@ func (sb *SnailBatcher[T]) AddMany(items []T) {
 
 func (sb *SnailBatcher[T]) Flush() {
 	sb.lockMutex()
-	defer sb.lock.Unlock()
+	defer sb.unlockMutex()
 	sb.flushUnsafe()
 }
 
@@ -119,7 +134,7 @@ func (sb *SnailBatcher[T]) flushUnsafe() {
 
 func (sb *SnailBatcher[T]) Close() {
 	sb.lockMutex()
-	defer sb.lock.Unlock()
+	defer sb.unlockMutex()
 	sb.flushUnsafe()
 	sb.batchChan <- []T{} // indicates a close
 }
@@ -148,5 +163,6 @@ func (sb *SnailBatcher[T]) workerLoop() {
 			slog.Error(fmt.Sprintf("error when flushing batch: %v", err))
 			// TODO: Forward errors, somehow. Or maybe just log them? Or provide retry policy, idk...
 		}
+
 	}
 }
