@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_batcher"
+	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/samber/lo"
@@ -710,8 +711,224 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 	slog.Info(fmt.Sprintf("Total Bandwidth usage: %s bits/sec", prettyInt3Digits(int64(respRateBitsPerSec))))
 }
 
+func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goroutines(t *testing.T) {
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	slog.Info("TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines")
+
+	testLength := 1 * time.Second
+	nGoRoutines := 256
+	batchSize := 5 * 1024
+
+	codec := newRequestTestStructCodec()
+
+	server, err := NewServer[requestTestStruct, requestTestStruct](
+		func() ServerConnHandler[requestTestStruct, requestTestStruct] {
+			return func(req requestTestStruct, repFunc func(resp requestTestStruct) error) error {
+				if repFunc == nil {
+					return nil
+				}
+				return repFunc(req)
+			}
+		},
+		nil,
+		codec.Parser,
+		codec.Writer,
+		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
+	)
+
+	if err != nil {
+		t.Fatalf("error creating server: %v", err)
+	}
+
+	if server == nil {
+		t.Fatalf("expected server, got nil")
+	}
+
+	defer server.Close()
+
+	clients := make([]*SnailClient[requestTestStruct, requestTestStruct], nGoRoutines)
+
+	sums := make([]int64, nGoRoutines)
+	nReqResps := atomic.Int64{}
+
+	wgWriters := sync.WaitGroup{}
+	wgWriters.Add(nGoRoutines)
+	respHandler := func(resp requestTestStruct, status ClientStatus) error {
+
+		if resp.IsFinalMessage() {
+			nReqResps.Add(sums[resp.GoRoutineIndex()])
+			wgWriters.Done()
+			return nil
+		}
+
+		sums[resp.GoRoutineIndex()] += 1
+
+		return nil
+	}
+
+	for i := 0; i < nGoRoutines; i++ {
+		client, err := NewClient[requestTestStruct, requestTestStruct](
+			"localhost",
+			server.Port(),
+			nil,
+			respHandler,
+			codec.Writer,
+			codec.Parser,
+		)
+		if err != nil {
+			t.Fatalf("error creating client: %v", err)
+		}
+		clients[i] = client
+	}
+
+	defer func() {
+		for i := 0; i < nGoRoutines; i++ {
+			if clients[i] != nil {
+				clients[i].Close()
+			}
+		}
+	}()
+
+	slog.Info("Creating batchers")
+	batchers := make([]*snail_batcher.SnailBatcher[requestTestStruct], nGoRoutines)
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+		client := clients[i]
+		batchers[i] = snail_batcher.NewSnailBatcher[requestTestStruct](
+			1*time.Minute,
+			batchSize,
+			batchSize*2,
+			true,
+			func(values []requestTestStruct) error {
+				return client.SendBatchUnsafe(values)
+			},
+		)
+	})
+
+	withinTestWindow := atomic.Bool{}
+	withinTestWindow.Store(true)
+	go func() {
+		time.Sleep(testLength)
+		slog.Info("Test window is over")
+		withinTestWindow.Store(false)
+	}()
+
+	slog.Info("Running senders")
+	t0 := time.Now()
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+		batcher := batchers[i]
+
+		for withinTestWindow.Load() {
+			batcher.Add(requestTestStruct{
+				Header: 12345,
+				ID1:    int64(i),
+				ID2:    4411222,
+			})
+		}
+
+		// Signal that this client is done
+		batcher.Add(requestTestStruct{
+			Header: -1,
+			ID1:    int64(i),
+			ID2:    4411222,
+		})
+
+		batcher.Flush()
+	})
+
+	slog.Info("Senders are done")
+	elapsedSend := time.Since(t0)
+
+	slog.Info("Waiting to receive all responses")
+	wgWriters.Wait()
+
+	elapsedRecv := time.Since(t0)
+
+	msgSize := 4 + 8 + 8
+	totalDataBytes := nReqResps.Load() * int64(msgSize)
+
+	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), elapsedSend))
+	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsedRecv))
+	slog.Info(fmt.Sprintf("Total data sent and received: %v bytes", prettyInt3Digits(totalDataBytes)))
+
+	respRate := float64(nReqResps.Load()) / elapsedRecv.Seconds()
+	sendRate := float64(nReqResps.Load()) / elapsedSend.Seconds()
+	totBwBytesPerSec := float64(totalDataBytes) / elapsedRecv.Seconds() * 2 // *2 because we send and receive twice
+	totBwBitsPerSec := totBwBytesPerSec * 8
+
+	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
+	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
+
+	slog.Info(fmt.Sprintf("Total Bandwidth usage: %s bytes/sec", prettyInt3Digits(int64(totBwBytesPerSec))))
+	slog.Info(fmt.Sprintf("Total Bandwidth usage: %s bits/sec", prettyInt3Digits(int64(totBwBitsPerSec))))
+}
+
 var prettyPrinter = message.NewPrinter(language.English)
 
 func prettyInt3Digits(n int64) string {
 	return prettyPrinter.Sprintf("%d", n)
+}
+
+type requestTestStruct struct {
+	Header int32
+	ID1    int64
+	ID2    int64
+}
+
+func (r *requestTestStruct) IsFinalMessage() bool {
+	return r.Header == -1
+}
+
+func (r *requestTestStruct) GoRoutineIndex() int {
+	return int(r.ID1)
+}
+
+func newRequestTestStructCodec() snail_parser.Codec[requestTestStruct] {
+
+	serializedSize := 4 + 8 + 8
+
+	return snail_parser.Codec[requestTestStruct]{
+		Parser: func(buffer *snail_buffer.Buffer) snail_parser.ParseOneResult[requestTestStruct] {
+
+			if buffer.NumBytesReadable() < serializedSize {
+				return snail_parser.ParseOneResult[requestTestStruct]{Status: snail_parser.ParseOneStatusNEB}
+			}
+
+			res := snail_parser.ParseOneResult[requestTestStruct]{}
+
+			invalid := func(err error) snail_parser.ParseOneResult[requestTestStruct] {
+				res.Err = err
+				return res
+			}
+
+			var err error
+			res.Value.Header, err = buffer.ReadInt32()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse header: %w", err))
+			}
+
+			res.Value.ID1, err = buffer.ReadInt64()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse id1: %w", err))
+			}
+
+			res.Value.ID2, err = buffer.ReadInt64()
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse id2: %w", err))
+			}
+
+			res.Status = snail_parser.ParseOneStatusOK
+			return res
+		},
+
+		Writer: func(buffer *snail_buffer.Buffer, t requestTestStruct) error {
+
+			buffer.WriteInt32(t.Header)
+			buffer.WriteInt64(t.ID1)
+			buffer.WriteInt64(t.ID2)
+
+			return nil
+		},
+	}
 }
