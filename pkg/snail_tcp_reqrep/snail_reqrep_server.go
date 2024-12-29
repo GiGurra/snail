@@ -146,8 +146,11 @@ func newTcpServerConnHandler[Req any, Resp any](
 			batcherOpts.QueueSize,
 			func(resps []Resp) error {
 
-				// In batched mode, we don't need a mutex, since the batcher
-				// itself will serialize the requests.
+				// We need a mutex to protect the write buffer
+
+				writeMutex.Lock()
+				defer writeMutex.Unlock()
+				defer writeBuffer.Reset()
 
 				// Prepare the response
 				for _, resp := range resps {
@@ -161,7 +164,6 @@ func newTcpServerConnHandler[Req any, Resp any](
 				if err != nil {
 					return fmt.Errorf("failed to write response: %w", err)
 				}
-				writeBuffer.Reset()
 
 				return nil
 			},
@@ -190,6 +192,7 @@ func newTcpServerConnHandler[Req any, Resp any](
 
 			writeMutex.Lock()
 			defer writeMutex.Unlock()
+			defer writeBuffer.Reset()
 
 			// Prepare the response
 			if err := writeFunc(writeBuffer, resp); err != nil {
@@ -201,7 +204,6 @@ func newTcpServerConnHandler[Req any, Resp any](
 			if err != nil {
 				return fmt.Errorf("failed to write response: %w", err)
 			}
-			writeBuffer.Reset()
 
 			return nil
 		}
