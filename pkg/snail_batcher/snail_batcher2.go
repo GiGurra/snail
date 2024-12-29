@@ -12,7 +12,9 @@ This used to be implemented using channels. But it turns out having multiple gor
 10 routines halves the performance. 100 routines and you are at 25% of the performance. at 1000 routines you are at 10%. and so on.
 Plain old mutexes seem faster :S. The idea now is to use a mutex to fill a slice, then when it reaches the batch size,
 we copy it to a new send it to an output channel. This way we offload the processing to a separate goroutine, and can
-continue to fill the slice. At least, that's the idea. We'll see how it works out in practice.
+continue to fill the slice.
+
+The new solution is about 2.5x faster for 1 go-routine, and 6x faster for 10_000 go-routines.
 */
 
 type SnailBatcher2[T any] struct {
