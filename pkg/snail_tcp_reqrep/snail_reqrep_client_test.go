@@ -483,7 +483,6 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 			1*time.Minute,
 			batchSize,
 			batchSize*2,
-			false,
 			func(values []int32) error {
 				return client.SendBatchUnsafe(values)
 			},
@@ -546,7 +545,7 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 	slog.Info("TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines")
 
 	testLength := 1 * time.Second
-	nGoRoutines := 512
+	nGoRoutines := 200
 	batchSize := 5 * 1024
 
 	codec := snail_parser.NewJsonLinesCodec[stupidJsonStruct]()
@@ -627,7 +626,6 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 			1*time.Minute,
 			batchSize,
 			batchSize*2,
-			false,
 			func(values []stupidJsonStruct) error {
 				return client.SendBatchUnsafe(values)
 			},
@@ -705,9 +703,9 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 
 	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
 	slog.Info(fmt.Sprintf("Response rate: %s bytes/sec", prettyInt3Digits(int64(respRateBytesPerSec))))
-	slog.Info(fmt.Sprintf("Response rate: %s bits/sec", prettyInt3Digits(int64(respRateBitsPerSec))))
 	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 
+	slog.Info(fmt.Sprintf("Total Bandwidth usage: %s bits/sec", prettyInt3Digits(int64(respRateBitsPerSec))))
 }
 
 var prettyPrinter = message.NewPrinter(language.English)
