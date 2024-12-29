@@ -16,11 +16,10 @@ continue to fill the slice. At least, that's the idea. We'll see how it works ou
 */
 
 type SnailBatcher2[T any] struct {
-	batchSize       int
-	threadSafeFlush bool
-	queueSize       int
-	batchChan       chan []T
-	queue           []T
+	batchSize int
+	queueSize int
+	batchChan chan []T
+	queue     []T
 
 	//mutex lock
 	lock sync.Mutex
