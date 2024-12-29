@@ -402,7 +402,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 
 	testLength := 1 * time.Second
 	nGoRoutines := 512
-	batchSize := 100
+	batchSize := 5 * 1024
 	optimization := snail_tcp.OptimizeForThroughput
 
 	codec := snail_parser.NewInt32Codec()
@@ -425,7 +425,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		},
 		codec.Parser,
 		codec.Writer,
-		nil,
+		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
 	)
 
 	if err != nil {
