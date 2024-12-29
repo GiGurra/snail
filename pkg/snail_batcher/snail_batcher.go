@@ -56,6 +56,12 @@ func (sb *SnailBatcher[T]) Add(item T) {
 	sb.inputChan <- queueItem[T]{Item: item, Type: queueItemAdd}
 }
 
+func (sb *SnailBatcher[T]) AddMany(items []T) {
+	for _, item := range items {
+		sb.Add(item)
+	}
+}
+
 func (sb *SnailBatcher[T]) Flush() {
 	sb.inputChan <- queueItem[T]{Type: queueItemManualFlush}
 }

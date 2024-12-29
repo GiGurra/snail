@@ -24,7 +24,7 @@ func TestNewServer_sendMessageTpServer(t *testing.T) {
 
 	recvCh := make(chan []byte)
 
-	newHandlerFunc := func() ServerConnHandler {
+	newHandlerFunc := func(_ net.Conn) ServerConnHandler {
 		return func(buffer *snail_buffer.Buffer, writer io.Writer) error {
 			if buffer == nil || writer == nil {
 				slog.Info("Closing connection")
@@ -95,7 +95,7 @@ func TestNewServer_send_1_GB(t *testing.T) {
 	recvSignal := make(chan byte, 10)
 	batch := make([]byte, batchSize)
 
-	newHandlerFunc := func() ServerConnHandler {
+	newHandlerFunc := func(_ net.Conn) ServerConnHandler {
 		return func(buffer *snail_buffer.Buffer, writer io.Writer) error {
 			if buffer == nil || writer == nil {
 				slog.Info("Closing connection")
@@ -187,7 +187,7 @@ func TestNewServer_send_3_GB_n_threads(t *testing.T) {
 	atomicCounter := atomic.Int64{}
 
 	wrReaders := sync.WaitGroup{}
-	newHandlerFunc := func() ServerConnHandler {
+	newHandlerFunc := func(_ net.Conn) ServerConnHandler {
 		counter := int64(0)
 		wrReaders.Add(1)
 		return func(buffer *snail_buffer.Buffer, writer io.Writer) error {

@@ -10,11 +10,11 @@ import (
 )
 
 // ServerConnHandler is the custom handler for a server connection. If the socket is closed, nil, nil is called
-type ServerConnHandler func(*snail_buffer.Buffer, io.Writer) error
+type ServerConnHandler func(*snail_buffer.Buffer) error
 
 type SnailServer struct {
 	socket         net.Listener
-	newHandlerFunc func() ServerConnHandler
+	newHandlerFunc func(conn net.Conn) ServerConnHandler
 	opts           SnailServerOpts
 }
 
@@ -35,7 +35,7 @@ func (s SnailServerOpts) WithDefaults() SnailServerOpts {
 }
 
 func NewServer(
-	newHandlerFunc func() ServerConnHandler,
+	newHandlerFunc func(conn net.Conn) ServerConnHandler,
 	optsPtr *SnailServerOpts,
 ) (*SnailServer, error) {
 
@@ -114,14 +114,14 @@ func (s *SnailServer) Close() {
 func (s *SnailServer) loopConnection(conn net.Conn) {
 	// read all messages see https://stackoverflow.com/questions/51046139/reading-data-from-socket-golang
 	accumBuf := snail_buffer.New(snail_buffer.BigEndian, s.opts.ReadBufSize)
-	handler := s.newHandlerFunc()
+	handler := s.newHandlerFunc(conn)
 
 	defer func() {
 		err := conn.Close()
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to close connection: %v", err))
 		}
-		err = handler(nil, nil)
+		err = handler(nil)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to handle connection after close: %v", err))
 		}
@@ -140,7 +140,7 @@ func (s *SnailServer) loopConnection(conn net.Conn) {
 			}
 		}
 
-		err = handler(accumBuf, conn)
+		err = handler(accumBuf)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to handle connection data: %v", err))
 			return

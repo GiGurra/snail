@@ -41,6 +41,7 @@ func TestNewClient_SendAndRespondWithJson(t *testing.T) {
 		nil,
 		reqCodec.Parser,
 		respCodec.Writer,
+		nil,
 	)
 
 	if err != nil {
@@ -124,6 +125,7 @@ func TestNewClient_SendAndRespondWithJson_1s_naive_performance(t *testing.T) {
 		nil,
 		reqCodec.Parser,
 		respCodec.Writer,
+		nil,
 	)
 
 	if err != nil {
@@ -214,6 +216,7 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance(t *testing.T) {
 		nil,
 		codec.Parser,
 		codec.Writer,
+		nil,
 	)
 
 	if err != nil {
@@ -305,6 +308,7 @@ func TestNewClient_SendAndRespondWithInts_1s_naive_performance_multiple_goroutin
 		nil,
 		codec.Parser,
 		codec.Writer,
+		nil,
 	)
 
 	if err != nil {
@@ -421,6 +425,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		},
 		codec.Parser,
 		codec.Writer,
+		nil,
 	)
 
 	if err != nil {

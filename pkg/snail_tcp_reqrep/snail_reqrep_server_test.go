@@ -42,6 +42,7 @@ func TestNewServer_SendAndRespondWithJson(t *testing.T) {
 		nil,
 		reqCodec.Parser,
 		respCodec.Writer,
+		nil,
 	)
 
 	if err != nil {
