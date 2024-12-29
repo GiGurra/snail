@@ -18,7 +18,7 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 
 	nItems := 40_000_000
 	batchSize := 10_000 // 10 000 seems to be the sweet spot
-	nGoRoutines := 1    // turns out pulling from multiple goroutines is slower
+	nGoRoutines := 1    // 10   // turns out pulling from multiple goroutines is slower
 
 	nExpectedResults := nItems / batchSize
 
