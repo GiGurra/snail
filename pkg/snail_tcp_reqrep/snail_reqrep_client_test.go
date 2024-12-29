@@ -1,6 +1,7 @@
 package snail_tcp_reqrep
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_logging"
@@ -526,6 +527,185 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	sendRate := float64(nReqResps.Load()) / elapsedSend.Seconds()
 
 	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
+	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
+
+}
+
+type stupidJsonStruct struct {
+	Msg            string `json:"msg"`
+	Bla            int    `json:"bla"`
+	Foo            string `json:"foo"`
+	Bar            int    `json:"bar"`
+	GoRoutineIndex int    `json:"go_routine_index"`
+	IsFinalMessage bool   `json:"is_final_message"`
+}
+
+func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines(t *testing.T) {
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	slog.Info("TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines")
+
+	testLength := 1 * time.Second
+	nGoRoutines := 512
+	batchSize := 5 * 1024
+
+	codec := snail_parser.NewJsonLinesCodec[stupidJsonStruct]()
+
+	server, err := NewServer[stupidJsonStruct, stupidJsonStruct](
+		func() ServerConnHandler[stupidJsonStruct, stupidJsonStruct] {
+			return func(req stupidJsonStruct, repFunc func(resp stupidJsonStruct) error) error {
+				if repFunc == nil {
+					return nil
+				}
+				return repFunc(req)
+			}
+		},
+		nil,
+		codec.Parser,
+		codec.Writer,
+		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
+	)
+
+	if err != nil {
+		t.Fatalf("error creating server: %v", err)
+	}
+
+	if server == nil {
+		t.Fatalf("expected server, got nil")
+	}
+
+	defer server.Close()
+
+	clients := make([]*SnailClient[stupidJsonStruct, stupidJsonStruct], nGoRoutines)
+
+	sums := make([]int64, nGoRoutines)
+	nReqResps := atomic.Int64{}
+
+	wgWriters := sync.WaitGroup{}
+	wgWriters.Add(nGoRoutines)
+	respHandler := func(resp stupidJsonStruct, status ClientStatus) error {
+
+		if resp.IsFinalMessage {
+			nReqResps.Add(sums[resp.GoRoutineIndex])
+			wgWriters.Done()
+			return nil
+		}
+
+		sums[resp.GoRoutineIndex] += 1
+
+		return nil
+	}
+
+	for i := 0; i < nGoRoutines; i++ {
+		client, err := NewClient[stupidJsonStruct, stupidJsonStruct](
+			"localhost",
+			server.Port(),
+			nil,
+			respHandler,
+			codec.Writer,
+			codec.Parser,
+		)
+		if err != nil {
+			t.Fatalf("error creating client: %v", err)
+		}
+		clients[i] = client
+	}
+
+	defer func() {
+		for i := 0; i < nGoRoutines; i++ {
+			if clients[i] != nil {
+				clients[i].Close()
+			}
+		}
+	}()
+
+	slog.Info("Creating batchers")
+	batchers := make([]*snail_batcher.SnailBatcher[stupidJsonStruct], nGoRoutines)
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+		client := clients[i]
+		batchers[i] = snail_batcher.NewSnailBatcher[stupidJsonStruct](
+			1*time.Minute,
+			batchSize,
+			batchSize*2,
+			false,
+			func(values []stupidJsonStruct) error {
+				return client.SendBatchUnsafe(values)
+			},
+		)
+	})
+
+	withinTestWindow := atomic.Bool{}
+	withinTestWindow.Store(true)
+	go func() {
+		time.Sleep(testLength)
+		slog.Info("Test window is over")
+		withinTestWindow.Store(false)
+	}()
+
+	slog.Info("Running senders")
+	t0 := time.Now()
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+		batcher := batchers[i]
+
+		for withinTestWindow.Load() {
+			batcher.Add(stupidJsonStruct{
+				Msg:            "Hello World",
+				Bla:            123,
+				Foo:            "321",
+				Bar:            112233,
+				GoRoutineIndex: i,
+				IsFinalMessage: false,
+			})
+		}
+
+		// Signal that this client is done
+		batcher.Add(stupidJsonStruct{
+			Msg:            "Test over",
+			Bla:            123,
+			Foo:            "321",
+			Bar:            112233,
+			GoRoutineIndex: i,
+			IsFinalMessage: true,
+		})
+
+		batcher.Flush()
+	})
+
+	slog.Info("Senders are done")
+	elapsedSend := time.Since(t0)
+
+	slog.Info("Waiting to receive all responses")
+	wgWriters.Wait()
+
+	elapsedRecv := time.Since(t0)
+
+	jsonAsBytes, err := json.Marshal(&stupidJsonStruct{
+		Msg:            "Hello World",
+		Bla:            123,
+		Foo:            "321",
+		Bar:            112233,
+		GoRoutineIndex: 123,
+		IsFinalMessage: false,
+	})
+	if err != nil {
+		panic(fmt.Errorf("error marshalling json: %v", err))
+	}
+	msgSize := len(jsonAsBytes)
+	totalDataBytes := nReqResps.Load() * int64(msgSize)
+
+	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), elapsedSend))
+	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsedRecv))
+	slog.Info(fmt.Sprintf("Total data sent and received: %v bytes", prettyInt3Digits(totalDataBytes)))
+
+	respRate := float64(nReqResps.Load()) / elapsedRecv.Seconds()
+	sendRate := float64(nReqResps.Load()) / elapsedSend.Seconds()
+	respRateBytesPerSec := float64(totalDataBytes) / elapsedRecv.Seconds() * 2 // *2 because we send and receive twice
+	respRateBitsPerSec := respRateBytesPerSec * 8
+
+	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
+	slog.Info(fmt.Sprintf("Response rate: %s bytes/sec", prettyInt3Digits(int64(respRateBytesPerSec))))
+	slog.Info(fmt.Sprintf("Response rate: %s bits/sec", prettyInt3Digits(int64(respRateBitsPerSec))))
 	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 
 }
