@@ -149,14 +149,14 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	batchSize := 1000
 	nGoRoutines := 1000
 
-	nReceived := 0
+	nReceived := int64(0)
 	batcher := NewSnailBatcher[int](
 		1*time.Minute, // dont want the tickers interfering
 		batchSize,
 		batchSize*5,
 		false,
 		func(values []int) error {
-			nReceived += len(values)
+			nReceived += int64(len(values))
 			return nil
 		},
 	)
@@ -183,10 +183,10 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	receiveRate := float64(nReceived) / timeElapsed.Seconds()
 	sendRate := float64(nSent) / timeElapsed.Seconds()
 
-	slog.Info(fmt.Sprintf("Received %s items in %s", prettyInt3Digits(int64(nReceived)), timeElapsed))
+	slog.Info(fmt.Sprintf("Received %s items in %s", prettyInt3Digits(nReceived), timeElapsed))
 	slog.Info(fmt.Sprintf("Receive Rate: %s items/sec", prettyInt3Digits(int64(receiveRate))))
 
-	slog.Info(fmt.Sprintf("Sent %s items in %s", prettyInt3Digits(int64(nSent)), timeElapsed))
+	slog.Info(fmt.Sprintf("Sent %s items in %s", prettyInt3Digits(nSent), timeElapsed))
 	slog.Info(fmt.Sprintf("Send Rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 }
 
