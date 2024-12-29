@@ -490,7 +490,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
 		batchers[i] = snail_batcher.NewSnailBatcher[int32](
-			1*time.Second,
+			1*time.Minute,
 			batchSize,
 			batchSize*2,
 			func(values []int32) error {
