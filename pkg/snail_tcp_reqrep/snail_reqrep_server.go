@@ -127,14 +127,12 @@ func (s *SnailServer[Req, Resp]) Close() {
 }
 
 func newTcpServerConnHandler[Req any, Resp any](
-	newHandlerFunc func() ServerConnHandler[Req, Resp],
+	userHandlerFunc func() ServerConnHandler[Req, Resp],
 	parseFunc snail_parser.ParseFunc[Req],
 	writeFunc snail_parser.WriteFunc[Resp],
 	batcherOpts BatcherOpts,
 	conn net.Conn,
 ) snail_tcp.ServerConnHandler {
-
-	handler := newHandlerFunc()
 
 	var batcher *snail_batcher.SnailBatcher[Resp]
 	if batcherOpts.IsEnabled() {
@@ -209,11 +207,12 @@ func newTcpServerConnHandler[Req any, Resp any](
 
 	}
 
+	userHandler := userHandlerFunc()
 	tcpHandler := func(readBuffer *snail_buffer.Buffer) error {
 
 		if readBuffer == nil {
 			var zero Req
-			err := handler(zero, nil)
+			err := userHandler(zero, nil)
 			if batcher != nil {
 				batcher.Close()
 			}
@@ -226,7 +225,7 @@ func newTcpServerConnHandler[Req any, Resp any](
 		}
 
 		for _, req := range reqs {
-			if err := handler(req, writeRespFunc); err != nil {
+			if err := userHandler(req, writeRespFunc); err != nil {
 				return fmt.Errorf("failed to handle request: %w", err)
 			}
 		}
