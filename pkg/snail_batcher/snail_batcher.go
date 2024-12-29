@@ -91,21 +91,21 @@ func (sb *SnailBatcher[T]) workerLoop() {
 		case queueItemAdd:
 			sb.batch = append(sb.batch, item.Item)
 			if len(sb.batch) >= sb.batchSize {
-				sb.flush(false, true)
+				sb.flush(false)
 			}
 		case queueItemManualFlush:
-			sb.flush(false, true)
+			sb.flush(false)
 		case queueItemTicFlush:
-			sb.flush(true, true)
+			sb.flush(true)
 		case queueItemClose:
 			slog.Debug("flushing and closing batcher")
-			sb.flush(false, false)
+			sb.flush(false)
 			return
 		}
 	}
 }
 
-func (sb *SnailBatcher[T]) flush(isTick bool, retryAllowed bool) {
+func (sb *SnailBatcher[T]) flush(isTick bool) {
 	if isTick {
 		defer sb.HasPendingTick.Store(false)
 	}
@@ -113,8 +113,6 @@ func (sb *SnailBatcher[T]) flush(isTick bool, retryAllowed bool) {
 	if len(sb.batch) == 0 {
 		return
 	}
-
-tryAgain:
 
 	var err error
 	if sb.threadSafeFlush {
@@ -124,10 +122,7 @@ tryAgain:
 	}
 	if err != nil {
 		slog.Error(fmt.Sprintf("error when flushing batch: %v", err))
-		if retryAllowed {
-			time.Sleep(1 * time.Second)
-			goto tryAgain
-		}
+		// TODO: Forward errors, somehow. Or maybe just log them? Or provide retry policy, idk...
 	}
 
 	sb.batch = sb.batch[:0]
