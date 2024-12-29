@@ -141,78 +141,13 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 }
 
-func TestPerfOfNewSnailBatcher_inEfficientRoutinesOld(t *testing.T) {
-
-	snail_logging.ConfigureDefaultLogger("text", "info", false)
-
-	nItems := 1_000_000
-	batchSize := 1000 // 10 000 seems to be the sweet spot
-	nGoRoutines := 10
-
-	nExpectedResults := nItems / batchSize
-
-	resultsChannel := make(chan []int, nExpectedResults)
-
-	batcher := NewSnailBatcher[int](
-		1*time.Minute, // dont want the tickers interfering
-		batchSize,
-		batchSize*5,
-		true, // need a copy of the batch slice
-		func(values []int) error {
-			resultsChannel <- values
-			return nil
-		},
-	)
-	defer batcher.Close()
-
-	t0 := time.Now()
-	go func() {
-
-		lop.ForEach(lo.Range(nGoRoutines), func(_ int, _ int) {
-			for i := 0; i < nItems/nGoRoutines; i++ {
-				batcher.Add(i)
-			}
-		})
-
-		batcher.Flush()
-
-		resultsChannel <- make([]int, nItems%nGoRoutines)
-
-	}()
-
-	slog.Info("waiting for results")
-
-	totalReceived := 0
-	for totalReceived < nItems {
-		select {
-		case items := <-resultsChannel:
-			totalReceived += len(items)
-		case <-time.After(5 * time.Second):
-			t.Fatalf("timeout waiting for results")
-		}
-	}
-
-	if totalReceived != nItems {
-		t.Fatalf("unexpected total received %d", totalReceived)
-	}
-
-	slog.Info("all results received")
-
-	timeElapsed := time.Since(t0)
-
-	rate := float64(nItems) / timeElapsed.Seconds()
-
-	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(int64(nItems)), timeElapsed))
-	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
-}
-
 func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
 	testLength := 1 * time.Second
 	batchSize := 1000 // 10 000 seems to be the sweet spot
-	nGoRoutines := 1
+	nGoRoutines := 1000
 
 	nReceived := 0
 	batcher := NewSnailBatcher[int](
