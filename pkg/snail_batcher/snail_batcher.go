@@ -69,7 +69,6 @@ func (sb *SnailBatcher[T]) workerLoop() {
 	ticker := time.NewTicker(sb.windowSize)
 	defer ticker.Stop()
 
-	// This isn't perfect, but it's FAST, really fast :)
 	go func() {
 		for range ticker.C {
 			if sb.HasPendingTick.CompareAndSwap(false, true) {
@@ -78,6 +77,8 @@ func (sb *SnailBatcher[T]) workerLoop() {
 		}
 	}()
 
+	// Turns out selecting from multiple channels is REALLY expensive,
+	// so we just use one channel for everything
 	for {
 		select {
 		case item := <-sb.inputChan:
