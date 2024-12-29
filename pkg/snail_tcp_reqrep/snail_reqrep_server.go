@@ -135,21 +135,18 @@ func newTcpServerConnHandler[Req any, Resp any](
 ) snail_tcp.ServerConnHandler {
 
 	handler := newHandlerFunc()
-	writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
-	writeMutex := sync.Mutex{}
 
 	var batcher *snail_batcher.SnailBatcher[Resp]
 	if batcherOpts.IsEnabled() {
+		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
 		batcher = snail_batcher.NewSnailBatcher[Resp](
 			batcherOpts.WindowSize,
 			batcherOpts.BatchSize,
 			batcherOpts.QueueSize,
 			func(resps []Resp) error {
 
-				// We need a mutex to protect the write buffer
-
-				writeMutex.Lock()
-				defer writeMutex.Unlock()
+				// We don't need a mutex to protect the writeBuffer here, since
+				// the batcher will only call this function from a single thread.
 				defer writeBuffer.Reset()
 
 				// Prepare the response
@@ -181,6 +178,8 @@ func newTcpServerConnHandler[Req any, Resp any](
 
 		// Non-batched mode
 
+		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+		writeMutex := sync.Mutex{}
 		writeRespFunc = func(resp Resp) error {
 
 			// A mutex is likely to be faster than a channel here, since we are
