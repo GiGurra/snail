@@ -487,6 +487,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		batchers[i] = snail_batcher.NewSnailBatcher[int32](
 			1*time.Second,
 			batchSize,
+			batchSize*2,
 			func(values []int32) error {
 				return client.SendBatch(values)
 			},

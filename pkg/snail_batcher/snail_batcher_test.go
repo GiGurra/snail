@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func TestNewSnailBatcher(t *testing.T) {
+func TestPerfOfNewSnailBatcher(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -27,6 +27,7 @@ func TestNewSnailBatcher(t *testing.T) {
 	batcher := NewSnailBatcher[int](
 		10*time.Millisecond, // simulate a 10ms window
 		batchSize,
+		batchSize*2,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -67,6 +68,164 @@ func TestNewSnailBatcher(t *testing.T) {
 
 	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(int64(nItems)), timeElapsed))
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
+}
+
+func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
+
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	nItems := 1
+	batchSize := 10_000
+	flushTime := 10 * time.Millisecond
+
+	resultsChannel := make(chan []int, 1)
+
+	batcher := NewSnailBatcher[int](
+		flushTime,
+		batchSize,
+		batchSize*2,
+		func(values []int) error {
+			resultsChannel <- values
+			return nil
+		},
+	)
+	defer batcher.Close()
+
+	t0 := time.Now()
+	go func() {
+		batcher.Add(1)
+	}()
+
+	slog.Info("waiting for results")
+
+	totalReceived := 0
+	for totalReceived < nItems {
+		select {
+		case items := <-resultsChannel:
+			totalReceived += len(items)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for results")
+		}
+	}
+
+	if totalReceived != nItems {
+		t.Fatalf("unexpected total received %d", totalReceived)
+	}
+
+	slog.Info("all results received")
+
+	timeElapsed := time.Since(t0)
+
+	if timeElapsed > 10*flushTime {
+		t.Fatalf("expected flush after timeout")
+	}
+}
+
+func TestNewSnailBatcher_flushesAfterTimeout1s(t *testing.T) {
+
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	nItems := 1
+	batchSize := 10_000
+	flushTime := 1 * time.Second
+
+	resultsChannel := make(chan []int, 1)
+
+	batcher := NewSnailBatcher[int](
+		flushTime,
+		batchSize,
+		batchSize*2,
+		func(values []int) error {
+			resultsChannel <- values
+			return nil
+		},
+	)
+	defer batcher.Close()
+
+	t0 := time.Now()
+	go func() {
+		batcher.Add(1)
+	}()
+
+	slog.Info("waiting for results")
+
+	totalReceived := 0
+	for totalReceived < nItems {
+		select {
+		case items := <-resultsChannel:
+			totalReceived += len(items)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for results")
+		}
+	}
+
+	if totalReceived != nItems {
+		t.Fatalf("unexpected total received %d", totalReceived)
+	}
+
+	slog.Info("all results received")
+
+	timeElapsed := time.Since(t0)
+
+	if timeElapsed < 500*time.Millisecond {
+		t.Fatalf("Received too early")
+	}
+
+	if timeElapsed > 2*flushTime {
+		t.Fatalf("Received too late")
+	}
+}
+
+func TestNewSnailBatcher_manualFlush(t *testing.T) {
+
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	nItems := 1
+	batchSize := 10_000
+	flushTime := 1 * time.Second
+
+	resultsChannel := make(chan []int, 1)
+
+	batcher := NewSnailBatcher[int](
+		flushTime,
+		batchSize,
+		batchSize*2,
+		func(values []int) error {
+			resultsChannel <- values
+			return nil
+		},
+	)
+	defer batcher.Close()
+
+	t0 := time.Now()
+	go func() {
+		batcher.Add(1)
+		batcher.Flush()
+	}()
+
+	slog.Info("waiting for results")
+
+	totalReceived := 0
+	for totalReceived < nItems {
+		select {
+		case items := <-resultsChannel:
+			totalReceived += len(items)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for results")
+		}
+	}
+
+	if totalReceived != nItems {
+		t.Fatalf("unexpected total received %d", totalReceived)
+	}
+
+	slog.Info("all results received")
+
+	timeElapsed := time.Since(t0)
+
+	if timeElapsed > 500*time.Millisecond {
+		t.Fatalf("Received too late")
+	}
 }
 
 var prettyPrinter = message.NewPrinter(language.English)

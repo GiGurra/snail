@@ -35,12 +35,13 @@ type queueItem[T any] struct {
 func NewSnailBatcher[T any](
 	windowSize time.Duration,
 	batchSize int,
+	queueSize int,
 	outputFunc func([]T) error,
 ) *SnailBatcher[T] {
 	res := &SnailBatcher[T]{
 		batchSize:  batchSize,
 		batch:      make([]T, 0, batchSize),
-		inputChan:  make(chan queueItem[T], batchSize*2),
+		inputChan:  make(chan queueItem[T], queueSize),
 		windowSize: windowSize,
 		nextWindow: time.Now().Add(windowSize),
 		outputFunc: outputFunc,
