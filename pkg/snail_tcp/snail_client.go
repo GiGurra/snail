@@ -36,10 +36,10 @@ type SnailClientOpts struct {
 func (o SnailClientOpts) WithDefaults() SnailClientOpts {
 	res := o
 	if res.ReadBufSize == 0 {
-		res.ReadBufSize = 2048
+		res.ReadBufSize = 64 * 1024
 	}
 	if res.WriteBufSize == 0 {
-		res.WriteBufSize = 2048
+		res.WriteBufSize = 64 * 1024
 	}
 	return res
 }

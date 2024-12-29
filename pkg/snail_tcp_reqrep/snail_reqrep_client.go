@@ -45,7 +45,7 @@ func NewClient[Req any, Resp any](
 		writeFunc:  writeFunc,
 		parseFunc:  parseFunc,
 		writeMutex: sync.Mutex{},
-		convertBuf: snail_buffer.New(snail_buffer.BigEndian, 1024),
+		convertBuf: snail_buffer.New(snail_buffer.BigEndian, 64*1024),
 	}, nil
 }
 

@@ -419,7 +419,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		nil,
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
+		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
 	)
 
 	if err != nil {
@@ -734,7 +734,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		nil,
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
+		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
 	)
 
 	if err != nil {

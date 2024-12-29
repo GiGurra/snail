@@ -136,7 +136,7 @@ func newTcpServerConnHandler[Req any, Resp any](
 
 	var batcher *snail_batcher.SnailBatcher[Resp]
 	if batcherOpts.IsEnabled() {
-		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 64*1024)
 		batcher = snail_batcher.NewSnailBatcher[Resp](
 			batcherOpts.WindowSize,
 			batcherOpts.BatchSize,
@@ -177,7 +177,7 @@ func newTcpServerConnHandler[Req any, Resp any](
 
 		// Non-batched mode
 
-		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
+		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 64*1024)
 		writeMutex := sync.Mutex{}
 		writeRespFunc = func(resp Resp) error {
 
