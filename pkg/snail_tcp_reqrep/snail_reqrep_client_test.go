@@ -489,32 +489,47 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		)
 	})
 
+	withinTestWindow := atomic.Bool{}
+	withinTestWindow.Store(true)
+	go func() {
+		time.Sleep(testLength)
+		withinTestWindow.Store(false)
+	}()
+
 	slog.Info("Starting senders")
 	t0 := time.Now()
+	wgSenders := sync.WaitGroup{}
+	wgSenders.Add(nGoRoutines)
 	go func() {
 		lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
 			batcher := batchers[i]
 
-			for time.Since(t0) < testLength {
+			for withinTestWindow.Load() {
 				batcher.Add(int32(i))
 			}
 
 			batcher.Add(int32(-i - 1)) // Signal that this client is done
 			batcher.Flush()
+			wgSenders.Done()
 		})
 	}()
+
+	slog.Info("Waiting to send all messages")
+	wgSenders.Wait()
+
+	elapsedSend := time.Since(t0)
 
 	slog.Info("Waiting to receive all responses")
 	wgWriters.Wait()
 
-	elapsed := time.Since(t0)
+	elapsedRecv := time.Since(t0)
 
-	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), testLength))
-	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsed))
+	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), elapsedSend))
+	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsedRecv))
 
-	respRate := float64(nReqResps.Load()) / elapsed.Seconds()
-	sendRate := float64(nReqResps.Load()) / testLength.Seconds()
+	respRate := float64(nReqResps.Load()) / elapsedRecv.Seconds()
+	sendRate := float64(nReqResps.Load()) / elapsedSend.Seconds()
 
 	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
 	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
