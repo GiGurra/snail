@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -28,8 +29,7 @@ type SnailBatcher[T any] struct {
 	batchChan    chan []T
 	pendingBatch []T
 
-	//lock sync.Mutex
-	lock idiotMutex
+	lock sync.Mutex
 
 	windowSize time.Duration
 	outputFunc func([]T) error
@@ -68,16 +68,30 @@ func (sb *SnailBatcher[T]) addUnsafe(item T) {
 	}
 }
 
+var useIdiotMutex = isMacOS()
+
+func isMacOS() bool {
+	return runtime.GOOS == "darwin"
+}
+
 func (sb *SnailBatcher[T]) lockMutex() {
-	// macos locks are incredibly slow. The numbers below are just
-	// empirical values that seem to work well. :S.
-	// Regular locks at low contention are 10x slower than the idiotMutex.
-	for !sb.lock.TryLock() {
-		if rand.Float32() < 0.001 {
-			time.Sleep(1 * time.Microsecond)
-		} else {
-			runtime.Gosched()
+
+	if //goland:noinspection GoBoolExpressions
+	useIdiotMutex {
+
+		// macos locks are incredibly slow. The numbers below are just
+		// empirical values that seem to work well. :S.
+		// Regular locks at low contention are 10x slower than the idiotMutex below.
+		for !sb.lock.TryLock() {
+			if rand.Float32() < 0.001 {
+				time.Sleep(1 * time.Microsecond)
+			} else {
+				runtime.Gosched()
+			}
 		}
+
+	} else {
+		sb.lock.Lock()
 	}
 }
 
