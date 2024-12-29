@@ -29,7 +29,7 @@ type SnailServerOpts struct {
 func (s SnailServerOpts) WithDefaults() SnailServerOpts {
 	res := s
 	if res.ReadBufSize == 0 {
-		res.ReadBufSize = 2048
+		res.ReadBufSize = 64 * 1024
 	}
 	return res
 }
