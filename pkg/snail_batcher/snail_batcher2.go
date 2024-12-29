@@ -18,10 +18,10 @@ The new solution is about 2.5x faster for 1 go-routine, and 6x faster for 10_000
 */
 
 type SnailBatcher2[T any] struct {
-	batchSize int
-	queueSize int
-	batchChan chan []T
-	queue     []T
+	batchSize    int
+	queueSize    int
+	batchChan    chan []T
+	pendingBatch []T
 
 	//mutex lock
 	lock sync.Mutex
@@ -37,12 +37,12 @@ func NewSnailBatcher2[T any](
 	outputFunc func([]T) error,
 ) *SnailBatcher2[T] {
 	res := &SnailBatcher2[T]{
-		batchSize:  batchSize,
-		queueSize:  queueSize,
-		batchChan:  make(chan []T, max(2, queueSize/batchSize)), // some reasonable back pressure
-		queue:      make([]T, 0, queueSize),                     // TODO: Improve the perf with circular buffer? Or slice pool?
-		windowSize: windowSize,
-		outputFunc: outputFunc,
+		batchSize:    batchSize,
+		queueSize:    queueSize,
+		batchChan:    make(chan []T, max(2, queueSize/batchSize)), // some reasonable back pressure
+		pendingBatch: make([]T, 0, batchSize),                     // TODO: Improve the perf with circular buffer? Or slice pool?
+		windowSize:   windowSize,
+		outputFunc:   outputFunc,
 	}
 
 	go res.workerLoop()
@@ -57,8 +57,8 @@ func (sb *SnailBatcher2[T]) Add(item T) {
 }
 
 func (sb *SnailBatcher2[T]) addUnsafe(item T) {
-	sb.queue = append(sb.queue, item)
-	if len(sb.queue) >= sb.queueSize {
+	sb.pendingBatch = append(sb.pendingBatch, item)
+	if len(sb.pendingBatch) >= sb.batchSize {
 		sb.flushUnsafe()
 	}
 }
@@ -78,12 +78,12 @@ func (sb *SnailBatcher2[T]) Flush() {
 }
 
 func (sb *SnailBatcher2[T]) flushUnsafe() {
-	if len(sb.queue) == 0 { // never send empty slice, since it's a signal to close the internal worker routine
+	if len(sb.pendingBatch) == 0 { // never send empty slice, since it's a signal to close the internal worker routine
 		return
 	}
-	cpy := make([]T, len(sb.queue))
-	copy(cpy, sb.queue)
-	sb.queue = sb.queue[:0]
+	cpy := make([]T, len(sb.pendingBatch))
+	copy(cpy, sb.pendingBatch)
+	sb.pendingBatch = sb.pendingBatch[:0]
 	sb.batchChan <- cpy
 }
 

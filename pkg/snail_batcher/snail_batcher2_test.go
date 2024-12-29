@@ -86,7 +86,7 @@ func TestPerfOfNewSnailBatcher2_inEfficientRoutines(t *testing.T) {
 	batcher := NewSnailBatcher2[int](
 		1*time.Minute, // dont want the tickers interfering
 		batchSize,
-		batchSize*5,
+		batchSize*2,
 		func(values []int) error {
 			nReceived += int64(len(values))
 			return nil
