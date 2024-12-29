@@ -722,9 +722,9 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	codec := newRequestTestStructCodec()
 
-	server, err := NewServer[requestTestStruct, requestTestStruct](
-		func() ServerConnHandler[requestTestStruct, requestTestStruct] {
-			return func(req requestTestStruct, repFunc func(resp requestTestStruct) error) error {
+	server, err := NewServer[*requestTestStruct, *requestTestStruct](
+		func() ServerConnHandler[*requestTestStruct, *requestTestStruct] {
+			return func(req *requestTestStruct, repFunc func(resp *requestTestStruct) error) error {
 				if repFunc == nil {
 					return nil
 				}
@@ -747,14 +747,14 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	defer server.Close()
 
-	clients := make([]*SnailClient[requestTestStruct, requestTestStruct], nGoRoutines)
+	clients := make([]*SnailClient[*requestTestStruct, *requestTestStruct], nGoRoutines)
 
 	sums := make([]int64, nGoRoutines)
 	nReqResps := atomic.Int64{}
 
 	wgWriters := sync.WaitGroup{}
 	wgWriters.Add(nGoRoutines)
-	respHandler := func(resp requestTestStruct, status ClientStatus) error {
+	respHandler := func(resp *requestTestStruct, status ClientStatus) error {
 
 		if resp.IsFinalMessage() {
 			nReqResps.Add(sums[resp.GoRoutineIndex()])
@@ -768,7 +768,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	}
 
 	for i := 0; i < nGoRoutines; i++ {
-		client, err := NewClient[requestTestStruct, requestTestStruct](
+		client, err := NewClient[*requestTestStruct, *requestTestStruct](
 			"localhost",
 			server.Port(),
 			nil,
@@ -791,15 +791,15 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	}()
 
 	slog.Info("Creating batchers")
-	batchers := make([]*snail_batcher.SnailBatcher[requestTestStruct], nGoRoutines)
+	batchers := make([]*snail_batcher.SnailBatcher[*requestTestStruct], nGoRoutines)
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
-		batchers[i] = snail_batcher.NewSnailBatcher[requestTestStruct](
+		batchers[i] = snail_batcher.NewSnailBatcher[*requestTestStruct](
 			1*time.Minute,
 			batchSize,
-			batchSize*2,
+			batchSize*5,
 			true,
-			func(values []requestTestStruct) error {
+			func(values []*requestTestStruct) error {
 				return client.SendBatchUnsafe(values)
 			},
 		)
@@ -815,23 +815,28 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	slog.Info("Running senders")
 	t0 := time.Now()
+
+	extraData := [256]byte{}
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
 		batcher := batchers[i]
+		testMessage := &requestTestStruct{
+			Header:    12345,
+			ID1:       int64(i),
+			ID2:       4411222,
+			ExtraData: extraData,
+		}
 
 		for withinTestWindow.Load() {
-			batcher.Add(requestTestStruct{
-				Header: 12345,
-				ID1:    int64(i),
-				ID2:    4411222,
-			})
+			batcher.Add(testMessage)
 		}
 
 		// Signal that this client is done
-		batcher.Add(requestTestStruct{
-			Header: -1,
-			ID1:    int64(i),
-			ID2:    4411222,
+		batcher.Add(&requestTestStruct{
+			Header:    -1,
+			ID1:       int64(i),
+			ID2:       4411222,
+			ExtraData: extraData,
 		})
 
 		batcher.Flush()
@@ -871,9 +876,10 @@ func prettyInt3Digits(n int64) string {
 }
 
 type requestTestStruct struct {
-	Header int32
-	ID1    int64
-	ID2    int64
+	Header    int32
+	ID1       int64
+	ID2       int64
+	ExtraData [256]byte
 }
 
 func (r *requestTestStruct) IsFinalMessage() bool {
@@ -884,20 +890,21 @@ func (r *requestTestStruct) GoRoutineIndex() int {
 	return int(r.ID1)
 }
 
-var requestTestStructSize = 4 + 8 + 8
+var requestTestStructSize = 4 + 8 + 8 + 256
 
-func newRequestTestStructCodec() snail_parser.Codec[requestTestStruct] {
+func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 
-	return snail_parser.Codec[requestTestStruct]{
-		Parser: func(buffer *snail_buffer.Buffer) snail_parser.ParseOneResult[requestTestStruct] {
+	return snail_parser.Codec[*requestTestStruct]{
+		Parser: func(buffer *snail_buffer.Buffer) snail_parser.ParseOneResult[*requestTestStruct] {
 
 			if buffer.NumBytesReadable() < requestTestStructSize {
-				return snail_parser.ParseOneResult[requestTestStruct]{Status: snail_parser.ParseOneStatusNEB}
+				return snail_parser.ParseOneResult[*requestTestStruct]{Status: snail_parser.ParseOneStatusNEB}
 			}
 
-			res := snail_parser.ParseOneResult[requestTestStruct]{}
+			res := snail_parser.ParseOneResult[*requestTestStruct]{}
+			res.Value = &requestTestStruct{}
 
-			invalid := func(err error) snail_parser.ParseOneResult[requestTestStruct] {
+			invalid := func(err error) snail_parser.ParseOneResult[*requestTestStruct] {
 				res.Err = err
 				return res
 			}
@@ -918,15 +925,21 @@ func newRequestTestStructCodec() snail_parser.Codec[requestTestStruct] {
 				return invalid(fmt.Errorf("failed to parse id2: %w", err))
 			}
 
+			err = buffer.ReadBytesInto(res.Value.ExtraData[:], 256)
+			if err != nil {
+				return invalid(fmt.Errorf("failed to parse extra data: %w", err))
+			}
+
 			res.Status = snail_parser.ParseOneStatusOK
 			return res
 		},
 
-		Writer: func(buffer *snail_buffer.Buffer, t requestTestStruct) error {
+		Writer: func(buffer *snail_buffer.Buffer, t *requestTestStruct) error {
 
 			buffer.WriteInt32(t.Header)
 			buffer.WriteInt64(t.ID1)
 			buffer.WriteInt64(t.ID2)
+			buffer.WriteBytes(t.ExtraData[:])
 
 			return nil
 		},
