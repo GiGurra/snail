@@ -238,11 +238,10 @@ func TestNewSnailBatcher2_manualFlush(t *testing.T) {
 
 	resultsChannel := make(chan []int, 1)
 
-	batcher := NewSnailBatcher[int](
+	batcher := NewSnailBatcher2[int](
 		flushTime,
 		batchSize,
 		batchSize*2,
-		true, // need a copy of the batch slice
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
