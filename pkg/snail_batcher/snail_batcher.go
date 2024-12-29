@@ -91,25 +91,22 @@ func (sb *SnailBatcher[T]) workerLoop() {
 		case queueItemAdd:
 			sb.batch = append(sb.batch, item.Item)
 			if len(sb.batch) >= sb.batchSize {
-				sb.flush(false)
+				sb.flush()
 			}
 		case queueItemManualFlush:
-			sb.flush(false)
+			sb.flush()
 		case queueItemTicFlush:
-			sb.flush(true)
+			sb.flush()
+			sb.HasPendingTick.Store(false)
 		case queueItemClose:
 			slog.Debug("flushing and closing batcher")
-			sb.flush(false)
+			sb.flush()
 			return
 		}
 	}
 }
 
-func (sb *SnailBatcher[T]) flush(isTick bool) {
-	if isTick {
-		defer sb.HasPendingTick.Store(false)
-	}
-
+func (sb *SnailBatcher[T]) flush() {
 	if len(sb.batch) == 0 {
 		return
 	}
