@@ -493,31 +493,25 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	withinTestWindow.Store(true)
 	go func() {
 		time.Sleep(testLength)
+		slog.Info("Test window is over")
 		withinTestWindow.Store(false)
 	}()
 
-	slog.Info("Starting senders")
+	slog.Info("Running senders")
 	t0 := time.Now()
-	wgSenders := sync.WaitGroup{}
-	wgSenders.Add(nGoRoutines)
-	go func() {
-		lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
-			batcher := batchers[i]
+		batcher := batchers[i]
 
-			for withinTestWindow.Load() {
-				batcher.Add(int32(i))
-			}
+		for withinTestWindow.Load() {
+			batcher.Add(int32(i))
+		}
 
-			batcher.Add(int32(-i - 1)) // Signal that this client is done
-			batcher.Flush()
-			wgSenders.Done()
-		})
-	}()
+		batcher.Add(int32(-i - 1)) // Signal that this client is done
+		batcher.Flush()
+	})
 
-	slog.Info("Waiting to send all messages")
-	wgSenders.Wait()
-
+	slog.Info("Senders are done")
 	elapsedSend := time.Since(t0)
 
 	slog.Info("Waiting to receive all responses")
