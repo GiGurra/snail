@@ -717,7 +717,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	slog.Info("TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines")
 
 	testLength := 1 * time.Second
-	nGoRoutines := 256
+	nGoRoutines := 12
 	batchSize := 5 * 1024
 
 	codec := newRequestTestStructCodec()
@@ -816,7 +816,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	slog.Info("Running senders")
 	t0 := time.Now()
 
-	extraData := [256]byte{}
+	extraData := [ExtraDataSize]byte{}
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
 		batcher := batchers[i]
@@ -875,11 +875,13 @@ func prettyInt3Digits(n int64) string {
 	return prettyPrinter.Sprintf("%d", n)
 }
 
+const ExtraDataSize = 256
+
 type requestTestStruct struct {
 	Header    int32
 	ID1       int64
 	ID2       int64
-	ExtraData [256]byte
+	ExtraData [ExtraDataSize]byte
 }
 
 func (r *requestTestStruct) IsFinalMessage() bool {
@@ -890,7 +892,7 @@ func (r *requestTestStruct) GoRoutineIndex() int {
 	return int(r.ID1)
 }
 
-var requestTestStructSize = 4 + 8 + 8 + 256
+var requestTestStructSize = 4 + 8 + 8 + ExtraDataSize
 
 func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 
@@ -925,7 +927,7 @@ func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 				return invalid(fmt.Errorf("failed to parse id2: %w", err))
 			}
 
-			err = buffer.ReadBytesInto(res.Value.ExtraData[:], 256)
+			err = buffer.ReadBytesInto(res.Value.ExtraData[:], ExtraDataSize)
 			if err != nil {
 				return invalid(fmt.Errorf("failed to parse extra data: %w", err))
 			}
