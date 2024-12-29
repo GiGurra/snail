@@ -8,6 +8,8 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -140,13 +142,13 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 }
 
-func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
+func TestPerfOfNewSnailBatcher_inEfficientRoutinesOld(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
 	nItems := 1_000_000
 	batchSize := 1000 // 10 000 seems to be the sweet spot
-	nGoRoutines := 1000
+	nGoRoutines := 10
 
 	nExpectedResults := nItems / batchSize
 
@@ -155,7 +157,7 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	batcher := NewSnailBatcher[int](
 		1*time.Minute, // dont want the tickers interfering
 		batchSize,
-		batchSize*2,
+		batchSize*5,
 		true, // need a copy of the batch slice
 		func(values []int) error {
 			resultsChannel <- values
@@ -202,6 +204,67 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	rate := float64(nItems) / timeElapsed.Seconds()
 
 	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(int64(nItems)), timeElapsed))
+	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
+}
+
+func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
+
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	testLength := 1 * time.Second
+	batchSize := 1000 // 10 000 seems to be the sweet spot
+	nGoRoutines := 1000
+
+	nProcessed := 0
+
+	wgReceivedAll := sync.WaitGroup{}
+	wgReceivedAll.Add(nGoRoutines)
+	batcher := NewSnailBatcher[int](
+		1*time.Minute, // dont want the tickers interfering
+		batchSize,
+		batchSize*5,
+		false,
+		func(values []int) error {
+			nProcessed += len(values)
+			for _, val := range values {
+				if val == -1 {
+					wgReceivedAll.Done()
+				}
+			}
+			return nil
+		},
+	)
+	defer batcher.Close()
+
+	sendIsOngoing := atomic.Bool{}
+	sendIsOngoing.Store(true)
+	go func() {
+		time.Sleep(testLength)
+		sendIsOngoing.Store(false)
+	}()
+
+	t0 := time.Now()
+
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+		for sendIsOngoing.Load() {
+			batcher.Add(i)
+		}
+		batcher.Add(-1)
+	})
+
+	batcher.Flush()
+
+	slog.Info("waiting for results")
+
+	wgReceivedAll.Wait()
+
+	slog.Info("all results received")
+
+	timeElapsed := time.Since(t0)
+
+	rate := float64(nProcessed) / timeElapsed.Seconds()
+
+	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(int64(nProcessed)), timeElapsed))
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 }
 
