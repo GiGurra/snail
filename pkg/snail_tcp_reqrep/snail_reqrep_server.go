@@ -144,10 +144,6 @@ func newTcpServerConnHandler[Req any, Resp any](
 			false,
 			func(resps []Resp) error {
 
-				if len(resps) == 0 {
-					return nil
-				}
-
 				// We don't need a mutex to protect the writeBuffer here, since
 				// the batcher will only call this function from a single thread.
 				defer writeBuffer.Reset()
