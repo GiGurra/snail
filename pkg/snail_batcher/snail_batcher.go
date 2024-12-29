@@ -79,24 +79,21 @@ func (sb *SnailBatcher[T]) workerLoop() {
 
 	// Turns out selecting from multiple channels is REALLY expensive,
 	// so we just use one channel for everything
-	for {
-		select {
-		case item := <-sb.inputChan:
-			switch item.Type {
-			case queueItemAdd:
-				sb.batch = append(sb.batch, item.Item)
-				if len(sb.batch) >= sb.batchSize {
-					sb.flush(false)
-				}
-			case queueItemManualFlush:
+	for item := range sb.inputChan {
+		switch item.Type {
+		case queueItemAdd:
+			sb.batch = append(sb.batch, item.Item)
+			if len(sb.batch) >= sb.batchSize {
 				sb.flush(false)
-			case queueItemTicFlush:
-				sb.flush(true)
-			case queueItemClose:
-				sb.flush(false)
-				slog.Debug("closing batcher")
-				return
 			}
+		case queueItemManualFlush:
+			sb.flush(false)
+		case queueItemTicFlush:
+			sb.flush(true)
+		case queueItemClose:
+			sb.flush(false)
+			slog.Debug("closing batcher")
+			return
 		}
 	}
 }
