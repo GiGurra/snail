@@ -845,7 +845,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	elapsedRecv := time.Since(t0)
 
-	msgSize := 4 + 8 + 8
+	msgSize := requestTestStructSize
 	totalDataBytes := nReqResps.Load() * int64(msgSize)
 
 	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), elapsedSend))
@@ -884,14 +884,14 @@ func (r *requestTestStruct) GoRoutineIndex() int {
 	return int(r.ID1)
 }
 
-func newRequestTestStructCodec() snail_parser.Codec[requestTestStruct] {
+var requestTestStructSize = 4 + 8 + 8
 
-	serializedSize := 4 + 8 + 8
+func newRequestTestStructCodec() snail_parser.Codec[requestTestStruct] {
 
 	return snail_parser.Codec[requestTestStruct]{
 		Parser: func(buffer *snail_buffer.Buffer) snail_parser.ParseOneResult[requestTestStruct] {
 
-			if buffer.NumBytesReadable() < serializedSize {
+			if buffer.NumBytesReadable() < requestTestStructSize {
 				return snail_parser.ParseOneResult[requestTestStruct]{Status: snail_parser.ParseOneStatusNEB}
 			}
 
