@@ -751,8 +751,6 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	defer server.Close()
 
-	clients := make([]*SnailClient[*requestTestStruct, *requestTestStruct], nGoRoutines)
-
 	sums := make([]int64, nGoRoutines)
 	nReqResps := atomic.Int64{}
 
@@ -771,16 +769,17 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		return nil
 	}
 
+	slog.Info("Creating clients")
+	clients := make([]*SnailClient[*requestTestStruct, *requestTestStruct], nGoRoutines)
 	for i := 0; i < nGoRoutines; i++ {
+		clientCodec := newRequestTestStructCodecPooledSingleThreadAllocator(1024)
 		client, err := NewClient[*requestTestStruct, *requestTestStruct](
 			"localhost",
 			server.Port(),
-			&snail_tcp.SnailClientOpts{
-				ReadBufSize: readBufSize,
-			},
+			&snail_tcp.SnailClientOpts{ReadBufSize: readBufSize},
 			respHandler,
-			codec.Writer,
-			codec.Parser,
+			clientCodec.Writer,
+			clientCodec.Parser,
 		)
 		if err != nil {
 			t.Fatalf("error creating client: %v", err)
@@ -900,7 +899,36 @@ func (r *requestTestStruct) GoRoutineIndex() int {
 
 var requestTestStructSize = 4 + 8 + 8 + ExtraDataSize
 
+type requestTestStructAllocator func() *requestTestStruct
+type requestTestStructDeallocator func(*requestTestStruct)
+
 func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
+	return newRequestTestStructCodecA(
+		func() *requestTestStruct { return &requestTestStruct{} },
+		func(r *requestTestStruct) {}, // no op
+	)
+}
+
+func newRequestTestStructCodecPooledSingleThreadAllocator(poolSize int) snail_parser.Codec[*requestTestStruct] {
+	pool := make([]requestTestStruct, poolSize)
+	poolIdx := 0
+	return newRequestTestStructCodecA(
+		func() *requestTestStruct {
+			res := &pool[poolIdx]
+			poolIdx++
+			if poolIdx >= poolSize {
+				poolIdx = 0
+			}
+			return res
+		},
+		func(r *requestTestStruct) {}, // no op
+	)
+}
+
+func newRequestTestStructCodecA(
+	allocator requestTestStructAllocator,
+	deallocator requestTestStructDeallocator,
+) snail_parser.Codec[*requestTestStruct] {
 
 	return snail_parser.Codec[*requestTestStruct]{
 		Parser: func(buffer *snail_buffer.Buffer) snail_parser.ParseOneResult[*requestTestStruct] {
@@ -910,7 +938,7 @@ func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 			}
 
 			res := snail_parser.ParseOneResult[*requestTestStruct]{}
-			res.Value = &requestTestStruct{}
+			res.Value = allocator()
 
 			invalid := func(err error) snail_parser.ParseOneResult[*requestTestStruct] {
 				res.Err = err
@@ -948,6 +976,8 @@ func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 			buffer.WriteInt64(t.ID1)
 			buffer.WriteInt64(t.ID2)
 			buffer.WriteBytes(t.ExtraData[:])
+
+			deallocator(t)
 
 			return nil
 		},
