@@ -126,17 +126,29 @@ func (b *Buffer) ReadString(n int) (string, error) {
 	return val, nil
 }
 
-func (b *Buffer) WriteInt32(val int32) {
+func (b *Buffer) WriteInt32(value int32) {
+
+	// This function is actually quite heavy. Below is the optimized version.
+	// Bot the capacity check and the writing is optimized.
+
+	// Ensure capacity
+	start := len(b.buf)
+	if cap(b.buf)-start < 4 {
+		b.buf = slices.Grow(b.buf, 4)
+	}
+
+	b.buf = b.buf[:start+4]
+
 	if b.endian == BigEndian {
-		b.buf = append(b.buf, byte((val>>24)&0xFF))
-		b.buf = append(b.buf, byte((val>>16)&0xFF))
-		b.buf = append(b.buf, byte((val>>8)&0xFF))
-		b.buf = append(b.buf, byte(val&0xFF))
+		b.buf[start] = byte(value >> 24)
+		b.buf[start+1] = byte(value >> 16)
+		b.buf[start+2] = byte(value >> 8)
+		b.buf[start+3] = byte(value)
 	} else {
-		b.buf = append(b.buf, byte(val&0xFF))
-		b.buf = append(b.buf, byte((val>>8)&0xFF))
-		b.buf = append(b.buf, byte((val>>16)&0xFF))
-		b.buf = append(b.buf, byte((val>>24)&0xFF))
+		b.buf[start] = byte(value)
+		b.buf[start+1] = byte(value >> 8)
+		b.buf[start+2] = byte(value >> 16)
+		b.buf[start+3] = byte(value >> 24)
 	}
 }
 
