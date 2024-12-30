@@ -877,3 +877,56 @@ func TestReadWriteInt64(t *testing.T) {
 	}
 
 }
+
+func TestReadWriteInt32(t *testing.T) {
+
+	endians := []snail_buffer.Endian{snail_buffer.BigEndian, snail_buffer.LittleEndian}
+
+	for _, endian := range endians {
+
+		buffer := snail_buffer.New(endian, 1024)
+
+		for i := 0; i < 10_000_000; i++ {
+
+			firstValue := -rand.Int32()
+			secondValue := rand.Int32()
+
+			buffer.WriteInt32(firstValue)
+			buffer.WriteInt32(secondValue)
+
+			if buffer.NumBytesReadable() != 8 {
+				t.Fatalf("expected 8 bytes readable, got %v", buffer.NumBytesReadable())
+			}
+
+			first, err := buffer.ReadInt32()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if first != firstValue {
+				t.Fatalf("expected 42, got %v", first)
+			}
+
+			second, err := buffer.ReadInt32()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if second != secondValue {
+				t.Fatalf("expected 43, got %v", second)
+			}
+
+			if buffer.NumBytesReadable() != 0 {
+				t.Fatalf("expected 0 bytes readable, got %v", buffer.NumBytesReadable())
+			}
+
+			if buffer.ReadPos() != 8 {
+				t.Fatalf("expected read pos 0, got %v", buffer.ReadPos())
+			}
+
+			buffer.Reset()
+		}
+
+	}
+
+}
