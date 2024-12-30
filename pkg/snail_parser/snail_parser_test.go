@@ -778,7 +778,7 @@ func newCustomStructCodec() Codec[jsonTestStruct] {
 
 func newRequestTestStructCodec() Codec[requestTestStruct] {
 
-	serializedSize := 4 + 2
+	serializedSize := 4 + 8 + 8
 
 	return Codec[requestTestStruct]{
 		Parser: func(buffer *snail_buffer.Buffer) ParseOneResult[requestTestStruct] {

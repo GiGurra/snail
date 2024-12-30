@@ -36,10 +36,10 @@ type SnailClientOpts struct {
 func (o SnailClientOpts) WithDefaults() SnailClientOpts {
 	res := o
 	if res.ReadBufSize == 0 {
-		res.ReadBufSize = 2048
+		res.ReadBufSize = 64 * 1024
 	}
 	if res.WriteBufSize == 0 {
-		res.WriteBufSize = 2048
+		res.WriteBufSize = 64 * 1024
 	}
 	return res
 }
@@ -100,7 +100,7 @@ func (c *SnailClient) loopRespListener() {
 
 		// TODO: Respect c.opts.MaxBufferedRespData
 
-		err := ReadToBuffer(c.opts.ReadBufSize, c.socket, readBuffer)
+		err := ReadToBuffer(c.opts.ReadBufSize/5, c.socket, readBuffer)
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				slog.Debug("Client socket is closed, shutting down client")

@@ -32,7 +32,7 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 			1*time.Minute, // dont want the tickers interfering
 			batchSize,
 			batchSize*2,
-			true, // need a copy of the batch slice
+			true,
 			func(values []int) error {
 				resultsChannel <- values
 				return nil
@@ -97,7 +97,7 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 				1*time.Minute, // dont want the tickers interfering
 				batchSize,
 				batchSize*2,
-				true, // need a copy of the batch slice
+				true,
 				func(values []int) error {
 					resultsChannel <- values
 					return nil
@@ -147,14 +147,14 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 
 	testLength := 1 * time.Second
 	batchSize := 1000
-	nGoRoutines := 1000
+	nGoRoutines := 100
 
 	nReceived := int64(0)
 	batcher := NewSnailBatcher[int](
 		1*time.Minute, // dont want the tickers interfering
 		batchSize,
 		batchSize*5,
-		false,
+		true,
 		func(values []int) error {
 			nReceived += int64(len(values))
 			return nil
@@ -204,7 +204,7 @@ func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
 		flushTime,
 		batchSize,
 		batchSize*2,
-		true, // need a copy of the batch slice
+		true,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -256,7 +256,7 @@ func TestNewSnailBatcher_flushesAfterTimeout1s(t *testing.T) {
 		flushTime,
 		batchSize,
 		batchSize*2,
-		true, // need a copy of the batch slice
+		true,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -312,7 +312,7 @@ func TestNewSnailBatcher_manualFlush(t *testing.T) {
 		flushTime,
 		batchSize,
 		batchSize*2,
-		true, // need a copy of the batch slice
+		true,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
