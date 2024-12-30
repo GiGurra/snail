@@ -84,6 +84,11 @@ func (s SnailServerOpts[Req, Resp]) WidthBatching(opts BatcherOpts) SnailServerO
 	return s
 }
 
+func (s SnailServerOpts[Req, Resp]) WithPerConnCodec(codecFunc func() PerConnCodec[Req, Resp]) SnailServerOpts[Req, Resp] {
+	s.PerConnCodec = codecFunc
+	return s
+}
+
 type PerConnCodec[Req any, Resp any] struct {
 	ParseFunc snail_parser.ParseFunc[Req]
 	WriteFunc snail_parser.WriteFunc[Resp]
