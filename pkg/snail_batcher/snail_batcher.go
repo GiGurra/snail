@@ -73,20 +73,19 @@ func (sb *SnailBatcher[T]) addUnsafe(item T) {
 	}
 }
 
-// Much faster, but no fifo or fairness attempts.
-//const useIdiotLock = true
+// lockMutex. When to use idiotLock? In general where there are
+// many writes and on macOS, it can give 10x the performance or more.
+// It's partially a spinlock, so it's not ideal for many cases
+// of low contention - but for some! Generally only use client side
+// when you know you have many writers.
+// const useIdiotLock = true
 
 func (sb *SnailBatcher[T]) lockMutex() {
 
 	if //goland:noinspection GoBoolExpressions
 	sb.useIdiotLock {
 
-		// MacOS locks are incredibly slow. The numbers below are just
-		// empirically found values that seem to work well. :S.
-		// Regular locks at low contention are 10x slower than the idiotMutex below.
-		// The difference on linux is not as big, but still significant.
 		for !sb.idiotLock.CompareAndSwap(false, true) {
-			//slog.Warn("idiotMutex contention")
 			if rand.Float32() < 0.001 {
 				time.Sleep(1 * time.Microsecond)
 			} else {
