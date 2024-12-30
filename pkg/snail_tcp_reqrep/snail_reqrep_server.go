@@ -80,7 +80,7 @@ func (s SnailServerOpts[Req, Resp]) WithDefaults() SnailServerOpts[Req, Resp] {
 }
 
 func (s SnailServerOpts[Req, Resp]) WidthBatching(opts BatcherOpts) SnailServerOpts[Req, Resp] {
-	s.Batcher = s.Batcher.WithDefaults()
+	s.Batcher = opts
 	return s
 }
 
