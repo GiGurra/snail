@@ -24,6 +24,8 @@ Soooo... I'm trying out a new mutex implementation, idiotMutex, which is close t
 It's 10x faster than the channel implementation in all situations, which is good enough - i.e. we always have about 50m/s performance even at 100.000 go-routines.
 */
 
+// TODO: Support callbacks for custom memory managers (allocators & deallocators)
+
 type SnailBatcher[T any] struct {
 	batchSize    int
 	queueSize    int
