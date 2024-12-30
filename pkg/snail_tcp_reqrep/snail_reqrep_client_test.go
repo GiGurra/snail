@@ -6,6 +6,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_logging"
+	"github.com/GiGurra/snail/pkg/snail_mem"
 	"github.com/GiGurra/snail/pkg/snail_parser"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"github.com/samber/lo"
@@ -899,14 +900,6 @@ func (r *requestTestStruct) GoRoutineIndex() int {
 
 var requestTestStructSize = 4 + 8 + 8 + ExtraDataSize
 
-type requestTestStructAllocator func() *requestTestStruct
-type requestTestStructDeallocator func(*requestTestStruct)
-
-type requestTestStructMemMgr struct {
-	Allocator   requestTestStructAllocator
-	DeAllocator requestTestStructDeallocator
-}
-
 func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 	return newRequestTestStructCodecA(
 		func() *requestTestStruct { return &requestTestStruct{} },
@@ -914,24 +907,8 @@ func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 	)
 }
 
-func newRequestTestStructAllocatorSingleThreadMemMgr(poolSize int) requestTestStructMemMgr {
-	pool := make([]requestTestStruct, poolSize)
-	poolIdx := 0
-	return requestTestStructMemMgr{
-		Allocator: func() *requestTestStruct {
-			res := &pool[poolIdx]
-			poolIdx++
-			if poolIdx >= poolSize {
-				poolIdx = 0
-			}
-			return res
-		},
-		DeAllocator: func(r *requestTestStruct) {}, // no op,
-	}
-}
-
 func newRequestTestStructCodecPooledSingleThreadAllocator(poolSize int) snail_parser.Codec[*requestTestStruct] {
-	memMgr := newRequestTestStructAllocatorSingleThreadMemMgr(poolSize)
+	memMgr := snail_mem.NewSingleThreadedCircularBufferTestMemMgr[requestTestStruct](poolSize)
 	return newRequestTestStructCodecA(
 		memMgr.Allocator,
 		memMgr.DeAllocator,
@@ -939,8 +916,8 @@ func newRequestTestStructCodecPooledSingleThreadAllocator(poolSize int) snail_pa
 }
 
 func newRequestTestStructCodecA(
-	allocator requestTestStructAllocator,
-	deallocator requestTestStructDeallocator,
+	allocator snail_mem.AllocatorFunc[requestTestStruct],
+	deallocator snail_mem.DeAllocatorFunc[requestTestStruct],
 ) snail_parser.Codec[*requestTestStruct] {
 
 	return snail_parser.Codec[*requestTestStruct]{
