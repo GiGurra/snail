@@ -762,6 +762,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	defer server.Close()
 
 	sums := make([]int64, nGoRoutines)
+	finelMessageHandled := make([]bool, nGoRoutines) // hack to test custom allocators
 	nReqResps := atomic.Int64{}
 
 	wgWriters := sync.WaitGroup{}
@@ -769,8 +770,11 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	respHandler := func(resp *requestTestStruct, status ClientStatus) error {
 
 		if resp.IsFinalMessage() {
-			nReqResps.Add(sums[resp.GoRoutineIndex()])
-			wgWriters.Done()
+			if !finelMessageHandled[resp.GoRoutineIndex()] {
+				finelMessageHandled[resp.GoRoutineIndex()] = true
+				nReqResps.Add(sums[resp.GoRoutineIndex()])
+				wgWriters.Done()
+			}
 			return nil
 		}
 
