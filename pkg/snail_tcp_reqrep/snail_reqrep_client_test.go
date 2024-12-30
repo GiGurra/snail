@@ -718,7 +718,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	slog.Info("TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines")
 
-	testLength := 10 * time.Second
+	testLength := 1 * time.Second
 	nGoRoutines := 12
 	batchSize := 1024
 	readBufSize := 32 * 1024
