@@ -75,6 +75,9 @@ func (b *Buffer) WriteInt8(val int8) {
 }
 
 func (b *Buffer) WriteInt16(val int16) {
+	// The naive implementation (just appending) seems fastest for small values, like int16
+	// For int32, an optimized version is very slightly faster,
+	// and for int64, the optimized version is significantly faster
 	if b.endian == BigEndian {
 		b.buf = append(b.buf, byte((val>>8)&0xFF))
 		b.buf = append(b.buf, byte(val&0xFF))
@@ -99,24 +102,6 @@ func (b *Buffer) ReadInt16() (int16, error) {
 	return val, nil
 }
 
-func (b *Buffer) ReadSInt8() (int8, error) {
-	if !b.CanRead(1) {
-		return 0, fmt.Errorf("not enough data to read int8")
-	}
-	val := int8(b.buf[b.readPos])
-	b.readPos++
-	return val, nil
-}
-
-func (b *Buffer) ReadUInt8() (uint8, error) {
-	if !b.CanRead(1) {
-		return 0, fmt.Errorf("not enough data to read int8")
-	}
-	val := b.buf[b.readPos]
-	b.readPos++
-	return val, nil
-}
-
 func (b *Buffer) ReadString(n int) (string, error) {
 	if !b.CanRead(n) {
 		return "", fmt.Errorf("not enough data to read string")
@@ -130,6 +115,8 @@ func (b *Buffer) WriteInt32(value int32) {
 
 	// This function is actually quite heavy. Below is the optimized version.
 	// Bot the capacity check and the writing is optimized.
+	// This doesn't make a huge diff for int32, but it does for int64.
+	// For int16, the naive implementation is actually faster, hence why it is kept there.
 
 	// Ensure capacity
 	start := len(b.buf)
@@ -211,10 +198,6 @@ func (b *Buffer) DiscardReadBytes() {
 	b.buf = snail_slice.DiscardFirstN(b.buf, readPosBefore)
 	b.readPos = 0
 	b.readPosMark -= readPosBefore
-}
-
-func (b *Buffer) WriteUInt8(u uint8) {
-	b.buf = append(b.buf, u)
 }
 
 func (b *Buffer) WriteByte(u byte) error {
