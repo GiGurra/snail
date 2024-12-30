@@ -532,6 +532,17 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
 	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 
+	clientRespBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedRecv.Seconds()
+	clientSendBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedSend.Seconds()
+
+	serverRespBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedRecv.Seconds()
+	serverSendBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedRecv.Seconds()
+
+	slog.Info(fmt.Sprintf("Client bandwidth usage [bytes]: %s bytes/sec", prettyInt3Digits(int64(clientRespBytesPerSec+clientSendBytesPerSec))))
+	slog.Info(fmt.Sprintf("Server bandwidth usage [bytes]: %s bytes/sec", prettyInt3Digits(int64(serverRespBytesPerSec+serverSendBytesPerSec))))
+
+	slog.Info(fmt.Sprintf("Client bandwidth usage [bits]: %s bits/sec", prettyInt3Digits(int64((clientRespBytesPerSec+clientSendBytesPerSec)*8))))
+	slog.Info(fmt.Sprintf("Server bandwidth usage [bits]: %s bits/sec", prettyInt3Digits(int64((serverRespBytesPerSec+serverSendBytesPerSec)*8))))
 }
 
 type stupidJsonStruct struct {
