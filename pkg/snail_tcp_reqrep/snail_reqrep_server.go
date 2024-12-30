@@ -23,7 +23,7 @@ type SnailServer[Req any, Resp any] struct {
 	newHandlerFunc func() ServerConnHandler[Req, Resp]
 	parseFunc      snail_parser.ParseFunc[Req]
 	writeFunc      snail_parser.WriteFunc[Resp]
-	opts           SnailServerOpts
+	opts           SnailServerOpts[Req, Resp]
 }
 
 type BatcherOpts struct {
@@ -69,18 +69,24 @@ func (b BatcherOpts) IsEnabled() bool {
 	return b.BatchSize > 0
 }
 
-type SnailServerOpts struct {
-	Batcher BatcherOpts
+type SnailServerOpts[Req any, Resp any] struct {
+	Batcher      BatcherOpts // will be created per conn by the server implementation
+	PerConnCodec func() PerConnCodec[Req, Resp]
 }
 
-func (s SnailServerOpts) WithDefaults() SnailServerOpts {
+func (s SnailServerOpts[Req, Resp]) WithDefaults() SnailServerOpts[Req, Resp] {
 	s.Batcher = s.Batcher.WithDefaults()
 	return s
 }
 
-func (s SnailServerOpts) WidthBatching(opts BatcherOpts) SnailServerOpts {
+func (s SnailServerOpts[Req, Resp]) WidthBatching(opts BatcherOpts) SnailServerOpts[Req, Resp] {
 	s.Batcher = s.Batcher.WithDefaults()
 	return s
+}
+
+type PerConnCodec[Req any, Resp any] struct {
+	ParseFunc snail_parser.ParseFunc[Req]
+	WriteFunc snail_parser.WriteFunc[Resp]
 }
 
 func NewServer[Req any, Resp any](
@@ -88,16 +94,29 @@ func NewServer[Req any, Resp any](
 	tcpOpts *snail_tcp.SnailServerOpts,
 	parseFunc snail_parser.ParseFunc[Req],
 	writeFunc snail_parser.WriteFunc[Resp],
-	opts *SnailServerOpts,
+	opts *SnailServerOpts[Req, Resp],
 ) (*SnailServer[Req, Resp], error) {
 
 	if opts == nil {
-		opts = &SnailServerOpts{}
+		opts = &SnailServerOpts[Req, Resp]{}
 	}
 	opts = lo.ToPtr(opts.WithDefaults())
 
+	if parseFunc == nil || writeFunc == nil {
+		if opts.PerConnCodec == nil {
+			return nil, fmt.Errorf("parseFunc and writeFunc must be provided if opts.PerConnCodec is nil")
+		}
+	}
+
 	newTcpHandlerFunc := func(conn net.Conn) snail_tcp.ServerConnHandler {
-		return newTcpServerConnHandler[Req, Resp](newHandlerFunc, parseFunc, writeFunc, opts.Batcher, conn)
+		ownParseFunc := parseFunc
+		ownWriteFunc := writeFunc
+		if opts.PerConnCodec != nil {
+			codec := opts.PerConnCodec()
+			ownParseFunc = codec.ParseFunc
+			ownWriteFunc = codec.WriteFunc
+		}
+		return newTcpServerConnHandler[Req, Resp](newHandlerFunc, ownParseFunc, ownWriteFunc, opts.Batcher, conn)
 	}
 
 	underlying, err := snail_tcp.NewServer(newTcpHandlerFunc, tcpOpts)

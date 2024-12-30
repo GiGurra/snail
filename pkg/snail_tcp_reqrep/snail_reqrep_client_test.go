@@ -421,7 +421,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		nil,
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
+		&SnailServerOpts[int32, int32]{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
 	)
 
 	if err != nil {
@@ -566,7 +566,7 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 		nil,
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize)},
+		&SnailServerOpts[stupidJsonStruct, stupidJsonStruct]{Batcher: NewBatcherOpts(batchSize)},
 	)
 
 	if err != nil {
@@ -739,7 +739,16 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		},
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
+		&SnailServerOpts[*requestTestStruct, *requestTestStruct]{
+			Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize),
+			PerConnCodec: func() PerConnCodec[*requestTestStruct, *requestTestStruct] {
+				underlyingCodec := newRequestTestStructCodecPooledSingleThreadAllocator(1024 * 20)
+				return PerConnCodec[*requestTestStruct, *requestTestStruct]{
+					ParseFunc: underlyingCodec.Parser,
+					WriteFunc: underlyingCodec.Writer,
+				}
+			},
+		},
 	)
 
 	if err != nil {
