@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_slice"
 	"io"
+	"slices"
 )
 
 type Endian int
@@ -287,24 +288,36 @@ func (b *Buffer) UnderlyingReadableView() *Buffer {
 }
 
 func (b *Buffer) WriteInt64(value int64) {
+
+	// This function is actually quite heavy. Below is the optimized version.
+	// Bot the capacity check and the writing is optimized.
+
+	// Ensure capacity
+	start := len(b.buf)
+	if cap(b.buf)-start < 8 {
+		b.buf = slices.Grow(b.buf, 8)
+	}
+
+	b.buf = b.buf[:start+8]
+
 	if b.endian == BigEndian {
-		b.buf = append(b.buf, byte((value>>56)&0xFF))
-		b.buf = append(b.buf, byte((value>>48)&0xFF))
-		b.buf = append(b.buf, byte((value>>40)&0xFF))
-		b.buf = append(b.buf, byte((value>>32)&0xFF))
-		b.buf = append(b.buf, byte((value>>24)&0xFF))
-		b.buf = append(b.buf, byte((value>>16)&0xFF))
-		b.buf = append(b.buf, byte((value>>8)&0xFF))
-		b.buf = append(b.buf, byte(value&0xFF))
+		b.buf[start] = byte(value >> 56)
+		b.buf[start+1] = byte(value >> 48)
+		b.buf[start+2] = byte(value >> 40)
+		b.buf[start+3] = byte(value >> 32)
+		b.buf[start+4] = byte(value >> 24)
+		b.buf[start+5] = byte(value >> 16)
+		b.buf[start+6] = byte(value >> 8)
+		b.buf[start+7] = byte(value)
 	} else {
-		b.buf = append(b.buf, byte(value&0xFF))
-		b.buf = append(b.buf, byte((value>>8)&0xFF))
-		b.buf = append(b.buf, byte((value>>16)&0xFF))
-		b.buf = append(b.buf, byte((value>>24)&0xFF))
-		b.buf = append(b.buf, byte((value>>32)&0xFF))
-		b.buf = append(b.buf, byte((value>>40)&0xFF))
-		b.buf = append(b.buf, byte((value>>48)&0xFF))
-		b.buf = append(b.buf, byte((value>>56)&0xFF))
+		b.buf[start] = byte(value)
+		b.buf[start+1] = byte(value >> 8)
+		b.buf[start+2] = byte(value >> 16)
+		b.buf[start+3] = byte(value >> 24)
+		b.buf[start+4] = byte(value >> 32)
+		b.buf[start+5] = byte(value >> 40)
+		b.buf[start+6] = byte(value >> 48)
+		b.buf[start+7] = byte(value >> 56)
 	}
 }
 
