@@ -902,6 +902,11 @@ var requestTestStructSize = 4 + 8 + 8 + ExtraDataSize
 type requestTestStructAllocator func() *requestTestStruct
 type requestTestStructDeallocator func(*requestTestStruct)
 
+type requestTestStructMemMgr struct {
+	Allocator   requestTestStructAllocator
+	DeAllocator requestTestStructDeallocator
+}
+
 func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 	return newRequestTestStructCodecA(
 		func() *requestTestStruct { return &requestTestStruct{} },
@@ -909,11 +914,11 @@ func newRequestTestStructCodec() snail_parser.Codec[*requestTestStruct] {
 	)
 }
 
-func newRequestTestStructCodecPooledSingleThreadAllocator(poolSize int) snail_parser.Codec[*requestTestStruct] {
+func newRequestTestStructAllocatorSingleThreadMemMgr(poolSize int) requestTestStructMemMgr {
 	pool := make([]requestTestStruct, poolSize)
 	poolIdx := 0
-	return newRequestTestStructCodecA(
-		func() *requestTestStruct {
+	return requestTestStructMemMgr{
+		Allocator: func() *requestTestStruct {
 			res := &pool[poolIdx]
 			poolIdx++
 			if poolIdx >= poolSize {
@@ -921,7 +926,15 @@ func newRequestTestStructCodecPooledSingleThreadAllocator(poolSize int) snail_pa
 			}
 			return res
 		},
-		func(r *requestTestStruct) {}, // no op
+		DeAllocator: func(r *requestTestStruct) {}, // no op,
+	}
+}
+
+func newRequestTestStructCodecPooledSingleThreadAllocator(poolSize int) snail_parser.Codec[*requestTestStruct] {
+	memMgr := newRequestTestStructAllocatorSingleThreadMemMgr(poolSize)
+	return newRequestTestStructCodecA(
+		memMgr.Allocator,
+		memMgr.DeAllocator,
 	)
 }
 
