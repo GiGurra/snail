@@ -720,8 +720,8 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	testLength := 10 * time.Second
 	nGoRoutines := 12
-	batchSize := 5 * 1024
-	readBufSize := 128 * 1024
+	batchSize := 1024
+	readBufSize := 32 * 1024
 
 	codec := newRequestTestStructCodec()
 
@@ -742,7 +742,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		&SnailServerOpts[*requestTestStruct, *requestTestStruct]{
 			Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize),
 			PerConnCodec: func() PerConnCodec[*requestTestStruct, *requestTestStruct] {
-				underlyingCodec := newRequestTestStructCodecPooledSingleThreadAllocator(1024 * 20)
+				underlyingCodec := newRequestTestStructCodecPooledSingleThreadAllocator(1024 * 2)
 				return PerConnCodec[*requestTestStruct, *requestTestStruct]{
 					ParseFunc: underlyingCodec.Parser,
 					WriteFunc: underlyingCodec.Writer,
