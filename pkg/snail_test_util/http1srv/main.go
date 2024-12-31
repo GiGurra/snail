@@ -26,7 +26,6 @@ func main() {
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 	//writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
-	state := requestState{}
 
 	return func(readBuf *snail_buffer.Buffer) error {
 
@@ -36,56 +35,66 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		}
 
 		// Read the request
-		fmt.Println(string(readBuf.UnderlyingReadable()))
-		fmt.Println("----")
+		//fmt.Println(string(readBuf.UnderlyingReadable()))
+		//fmt.Println("----")
 		// Loop over lines
-		newState := state
-		bytes := readBuf.UnderlyingReadable()
-		for i, b := range bytes {
+		state := getRequestState{}
+		bytes := readBuf.Underlying()
+		responsesToSend := 0
+		for i := readBuf.ReadPos(); i < len(bytes); i++ {
+			b := bytes[i]
 			if b == '\r' {
 				// ignore
 				continue
 			}
 
-			if !newState.StartLineReading && !newState.StartLineReceived {
+			if !state.StartLineReading && !state.StartLineReceived {
 				// First character must be G for GET, the rest is ignored
 				if b != 'G' {
 					return fmt.Errorf("unsupported request method: %c", b)
 				}
-				newState.StartLineReading = true
+				state.StartLineStart = i
+				state.StartLineReading = true
 				continue
 			}
 
-			if newState.StartLineReading {
+			if state.StartLineReading {
 				if b == '\n' {
-					newState.StartLine = string(bytes[:i])
-					fmt.Printf("Start line: %s\n", newState.StartLine)
-					newState.StartLineReceived = true
-					newState.StartLineReading = false
-					newState.HeadersReading = true
+					state.StartLine = string(bytes[state.StartLineStart:i])
+					fmt.Printf("Start line: %s\n", state.StartLine)
+					state.StartLineReceived = true
+					state.StartLineReading = false
+					state.HeadersReading = true
 					continue
 				}
 			}
 
-			if newState.HeadersReading {
-				if newState.CurrentHeaderStart <= 0 {
-					newState.CurrentHeaderStart = i
+			if state.HeadersReading {
+				if state.CurrentHeaderStart <= 0 {
+					state.CurrentHeaderStart = i
 				}
 				if b == '\n' {
 					// End of header
-					newState.HeadersReceived = true
-					headerLen := i - newState.CurrentHeaderStart
+					state.HeadersReceived = true
+					headerLen := i - state.CurrentHeaderStart
 					if headerLen == 0 {
 						// End of headers
-						newState.HeadersReading = false
-						newState.HeadersReceived = true
+						state.HeadersReading = false
+						state.HeadersReceived = true
 						fmt.Println("End of headers")
+						state.RequestComplete = true
+						// TODO: Handle request
+						responsesToSend++
+						state = getRequestState{}
+						// forward the read position
+						readBuf.SetReadPos(i + 1)
+						readBuf.DiscardReadBytes()
 						continue
 					} else {
-						header := string(bytes[newState.CurrentHeaderStart:i])
-						newState.Headers = append(newState.Headers, header)
+						header := string(bytes[state.CurrentHeaderStart:i])
+						state.Headers = append(state.Headers, header)
 						fmt.Printf("Header: %s\n", header)
-						newState.CurrentHeaderStart = 0
+						state.CurrentHeaderStart = 0
 					}
 					continue
 				}
@@ -96,13 +105,16 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 	}
 }
 
-type requestState struct {
+type getRequestState struct {
 	StartLineReading  bool
 	StartLineReceived bool
+	StartLineStart    int
 	StartLine         string
 
 	HeadersReading     bool
 	HeadersReceived    bool
 	CurrentHeaderStart int
 	Headers            []string
+
+	RequestComplete bool
 }
