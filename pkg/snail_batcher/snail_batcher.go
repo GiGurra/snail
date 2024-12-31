@@ -11,50 +11,87 @@ import (
 )
 
 /**
-This used to be implemented using channels. But it turns out having multiple goroutines write to the same channel is really slow.
-10 routines halves the performance. 100 routines and you are at 25% of the performance. at 1000 routines you are at 10%. and so on.
-Plain old mutexes seem faster :S. The idea now is to use a mutex to fill a slice, then when it reaches the batch size,
-we copy it to a new send it to an output channel. This way we offload the processing to a separate goroutine, and can
-continue to fill the slice.
+This is an entirely new batcher based on a new algorithm.
+It's basically an n-buffer implementation - default to triple buffering.
+It works like this: We have clients pushing data, 2+ buffers, and a worker.
+The worker gets data from clients when buffers have been fully written
+and enqueued to the worker, or a timeout has been reached.
 
-The new solution with reglar sync mutex is about 2.5x faster for 1 go-routine, and 6x faster for 10_000 go-routines.
-BUUUUUT, that's only on linux... When i test it on macos, the regular sync.Mutex is super slow between 2-8 goroutines (slower than channels).
+Clients write to an available back buffer. When it's full,
+they push it to the worker over the push channel, and
+then pull a new back buffer from the worker over the pull channel.
 
-Soooo... I'm trying out a new mutex implementation, idiotMutex, which is close to a spinlock.
-It's 10x faster than the channel implementation in all situations, which is good enough - i.e. we always have about 50m/s performance even at 100.000 go-routines.
+Both push and pull channels are buffered.
+
+Each buffer has a max size called batchSize. The number of additional buffers
+available make up the queue. The queue size is given in number of elements, and it
+must be a multiple of the batchSize.
+
+Example: Batch size of 10 and queue size of 10 means we have 2 buffers in total (double buffering).
+Batch size of 10 and queue size of 20 means we have 3 buffers in total (triple buffering).
+
+Why not just use channels? Because they're too slow!
+Why not just regular mutexes? Same reason!
 */
 
 // TODO: Support callbacks for custom memory managers (allocators & deallocators)
 
 type SnailBatcher[T any] struct {
-	batchSize    int
-	queueSize    int
-	batchChan    chan []T
-	pendingBatch []T
+	batchSize int
+	queueSize int
+
+	pushChan          chan []T
+	pullChan          chan []T
+	currentBackBuffer []T
 
 	lock         sync.Mutex
 	idiotLock    atomic.Bool
 	useIdiotLock bool
 
-	windowSize time.Duration
+	timeout    time.Duration
 	outputFunc func([]T) error
 }
 
 func NewSnailBatcher[T any](
-	windowSize time.Duration,
 	batchSize int,
 	queueSize int,
 	useIdiotLock bool, // improves performance for clients under high throughput, mostly on macos
+	timeout time.Duration,
 	outputFunc func([]T) error,
 ) *SnailBatcher[T] {
+
+	if batchSize <= 0 {
+		panic(fmt.Sprintf("batchSize must be > 0, got %d", batchSize))
+	}
+
+	if queueSize <= 0 {
+		panic(fmt.Sprintf("queueSize must be > 0, got %d", queueSize))
+	}
+
+	if queueSize%batchSize != 0 {
+		panic(fmt.Sprintf("queueSize must be a multiple of batchSize, got %d", queueSize))
+	}
+
+	totalBufferCount := 1 + queueSize/batchSize
+
 	res := &SnailBatcher[T]{
-		batchSize:    batchSize,
-		queueSize:    queueSize,
-		batchChan:    make(chan []T, max(2, queueSize/batchSize)), // some reasonable back pressure
-		pendingBatch: make([]T, 0, batchSize),                     // TODO: Improve the perf with circular buffer? Or slice pool?
+
+		batchSize: batchSize,
+		queueSize: queueSize,
+
+		pushChan:          make(chan []T, totalBufferCount),
+		pullChan:          make(chan []T, totalBufferCount),
+		currentBackBuffer: nil,
+
 		useIdiotLock: useIdiotLock,
-		windowSize:   windowSize,
-		outputFunc:   outputFunc,
+
+		timeout:    timeout,
+		outputFunc: outputFunc,
+	}
+
+	// add buffers to the pull channel
+	for i := 0; i < totalBufferCount; i++ {
+		res.pullChan <- make([]T, 0, batchSize)
 	}
 
 	go res.workerLoop()
@@ -69,8 +106,11 @@ func (sb *SnailBatcher[T]) Add(item T) {
 }
 
 func (sb *SnailBatcher[T]) addUnsafe(item T) {
-	sb.pendingBatch = append(sb.pendingBatch, item)
-	if len(sb.pendingBatch) >= sb.batchSize {
+	if sb.currentBackBuffer == nil {
+		sb.currentBackBuffer = <-sb.pullChan
+	}
+	sb.currentBackBuffer = append(sb.currentBackBuffer, item)
+	if len(sb.currentBackBuffer) >= sb.batchSize {
 		sb.flushUnsafe()
 	}
 }
@@ -124,36 +164,32 @@ func (sb *SnailBatcher[T]) Flush() {
 }
 
 func (sb *SnailBatcher[T]) flushUnsafe() {
-	if len(sb.pendingBatch) == 0 { // never send empty slice, since it's a signal to close the internal worker routine
+	if len(sb.currentBackBuffer) == 0 { // never send empty slice, since it's a signal to close the internal worker routine
 		return
 	}
-	cpy := make([]T, len(sb.pendingBatch))
-	copy(cpy, sb.pendingBatch)
-	sb.pendingBatch = sb.pendingBatch[:0]
-	sb.batchChan <- cpy
+	sb.pushChan <- sb.currentBackBuffer
+	sb.currentBackBuffer = nil
 }
 
 func (sb *SnailBatcher[T]) Close() {
 	sb.lockMutex()
 	defer sb.unlockMutex()
 	sb.flushUnsafe()
-	sb.batchChan <- []T{} // indicates a close
+	sb.pushChan <- []T{} // indicates a close
 }
 
 func (sb *SnailBatcher[T]) workerLoop() {
 
-	ticker := time.NewTicker(sb.windowSize)
+	// Ugly for now, but it works
+	ticker := time.NewTicker(sb.timeout)
 	defer ticker.Stop()
-
 	go func() {
-		for range ticker.C { // ugly, but it works :)
-			if len(sb.batchChan) == 0 {
-				sb.Flush()
-			}
+		for range ticker.C {
+			sb.Flush()
 		}
 	}()
 
-	for batch := range sb.batchChan {
+	for batch := range sb.pushChan {
 		for len(batch) == 0 {
 			slog.Debug("batcher received close signal, stopping")
 			return
@@ -165,5 +201,8 @@ func (sb *SnailBatcher[T]) workerLoop() {
 			// TODO: Forward errors, somehow. Or maybe just log them? Or provide retry policy, idk...
 		}
 
+		// zero out the buffer and push it back to the pull channel
+		batch = batch[:0]
+		sb.pullChan <- batch
 	}
 }

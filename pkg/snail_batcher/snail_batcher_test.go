@@ -29,10 +29,10 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 	go func() {
 
 		batcher := NewSnailBatcher[int](
-			1*time.Minute, // dont want the tickers interfering
 			batchSize,
 			batchSize*2,
 			true,
+			1*time.Minute, // dont want the tickers interfering
 			func(values []int) error {
 				resultsChannel <- values
 				return nil
@@ -94,10 +94,10 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 
 		lop.ForEach(lo.Range(nGoRoutines), func(_ int, _ int) {
 			batcher := NewSnailBatcher[int](
-				1*time.Minute, // dont want the tickers interfering
 				batchSize,
 				batchSize*2,
 				true,
+				1*time.Minute, // dont want the tickers interfering
 				func(values []int) error {
 					resultsChannel <- values
 					return nil
@@ -151,10 +151,10 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 
 	nReceived := int64(0)
 	batcher := NewSnailBatcher[int](
-		1*time.Minute, // dont want the tickers interfering
 		batchSize,
 		batchSize*5,
 		true,
+		1*time.Minute, // dont want the tickers interfering
 		func(values []int) error {
 			nReceived += int64(len(values))
 			return nil
@@ -201,10 +201,10 @@ func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
 	resultsChannel := make(chan []int, 1)
 
 	batcher := NewSnailBatcher[int](
-		flushTime,
 		batchSize,
 		batchSize*2,
 		true,
+		flushTime,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -253,10 +253,10 @@ func TestNewSnailBatcher_flushesAfterTimeout1s(t *testing.T) {
 	resultsChannel := make(chan []int, 1)
 
 	batcher := NewSnailBatcher[int](
-		flushTime,
 		batchSize,
 		batchSize*2,
 		true,
+		flushTime,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -309,10 +309,10 @@ func TestNewSnailBatcher_manualFlush(t *testing.T) {
 	resultsChannel := make(chan []int, 1)
 
 	batcher := NewSnailBatcher[int](
-		flushTime,
 		batchSize,
 		batchSize*2,
 		true,
+		flushTime,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil

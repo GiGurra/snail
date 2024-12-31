@@ -35,22 +35,8 @@ type BatcherOpts struct {
 func NewBatcherOpts(batchSize int) BatcherOpts {
 	return BatcherOpts{
 		BatchSize: batchSize,
+		QueueSize: batchSize * 2, //default to triple buffering
 	}.WithDefaults()
-}
-
-func (b BatcherOpts) WithBatchSize(batchSize int) BatcherOpts {
-	b.BatchSize = batchSize
-	return b
-}
-
-func (b BatcherOpts) WithWindowSize(windowSize time.Duration) BatcherOpts {
-	b.WindowSize = windowSize
-	return b
-}
-
-func (b BatcherOpts) WithQueueSize(queueSize int) BatcherOpts {
-	b.QueueSize = queueSize
-	return b
 }
 
 func (b BatcherOpts) WithDefaults() BatcherOpts {
@@ -89,6 +75,24 @@ func (s SnailServerOpts[Req, Resp]) WithPerConnCodec(codecFunc func() PerConnCod
 	return s
 }
 
+func (s SnailServerOpts[Req, Resp]) validate() {
+	if s.Batcher.IsEnabled() {
+		if s.Batcher.BatchSize <= 0 {
+			panic(fmt.Sprintf("BatchSize must be > 0, got %d", s.Batcher.BatchSize))
+		}
+		if s.Batcher.WindowSize <= 0 {
+			panic(fmt.Sprintf("WindowSize must be > 0, got %d", s.Batcher.WindowSize))
+		}
+		if s.Batcher.QueueSize <= 0 {
+			panic(fmt.Sprintf("QueueSize must be > 0, got %d", s.Batcher.QueueSize))
+		}
+		// queue size must be a multiple of batch size
+		if s.Batcher.QueueSize%s.Batcher.BatchSize != 0 {
+			panic(fmt.Sprintf("QueueSize must be a multiple of BatchSize, got %d", s.Batcher.QueueSize))
+		}
+	}
+}
+
 type PerConnCodec[Req any, Resp any] struct {
 	ParseFunc snail_parser.ParseFunc[Req]
 	WriteFunc snail_parser.WriteFunc[Resp]
@@ -106,6 +110,7 @@ func NewServer[Req any, Resp any](
 		opts = &SnailServerOpts[Req, Resp]{}
 	}
 	opts = lo.ToPtr(opts.WithDefaults())
+	opts.validate()
 
 	if parseFunc == nil || writeFunc == nil {
 		if opts.PerConnCodec == nil {
@@ -162,10 +167,10 @@ func newTcpServerConnHandler[Req any, Resp any](
 	if batcherOpts.IsEnabled() {
 		writeBuffer := snail_buffer.New(snail_buffer.BigEndian, 64*1024)
 		batcher = snail_batcher.NewSnailBatcher[Resp](
-			batcherOpts.WindowSize,
 			batcherOpts.BatchSize,
 			batcherOpts.QueueSize,
 			false,
+			batcherOpts.WindowSize,
 			func(resps []Resp) error {
 
 				// We don't need a mutex to protect the writeBuffer here, since
