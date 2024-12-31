@@ -14,11 +14,11 @@ import (
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"log/slog"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 func TestNewClient_SendAndRespondWithJson(t *testing.T) {
@@ -780,57 +780,41 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	// Set up the final response handlers (client side)
 	wgWriters := sync.WaitGroup{}
 	wgWriters.Add(nGoRoutines)
-	handlerFuncA := func(resp *requestTestStruct, status ClientStatus) error {
-
-		if resp.IsFinalMessage() {
-			if !finalMessageHandled[resp.GoRoutineIndex()] {
-				finalMessageHandled[resp.GoRoutineIndex()] = true
-				nReqResps.Add(sums[resp.GoRoutineIndex()])
-				wgWriters.Done()
-			}
-			return nil
-		}
-
-		sums[resp.GoRoutineIndex()] += 1
-
-		return nil
-	}
-	handlerFuncB := func(resp *requestTestStruct, status ClientStatus) error {
-
-		if resp.IsFinalMessage() {
-			if !finalMessageHandled[resp.GoRoutineIndex()] {
-				finalMessageHandled[resp.GoRoutineIndex()] = true
-				nReqResps.Add(sums[resp.GoRoutineIndex()])
-				wgWriters.Done()
-			}
-			return nil
-		}
-
-		sums[resp.GoRoutineIndex()] += 1
-
-		return nil
-	}
-	addrOfHandlerFuncA := uintptr(unsafe.Pointer(&handlerFuncA))
-	addrOfHandlerFuncB := uintptr(unsafe.Pointer(&handlerFuncB))
 
 	// Turns out it is faster storing uintptr as key in the map, compared to storing int64s :S. Who knows why
-	// it also turns out the sync.Map is faster than regular map... WTH :D
-	callbacks := sync.Map{}
-	callbacks.Store(addrOfHandlerFuncA, handlerFuncA)
-	callbacks.Store(addrOfHandlerFuncB, handlerFuncB)
+	callbacks := map[int]func(*requestTestStruct, ClientStatus) error{}
+	nHandlerFuncs := 100_000
+	for i := 0; i < nHandlerFuncs; i++ {
+		handlerFunc := func(resp *requestTestStruct, status ClientStatus) error {
+
+			if resp.IsFinalMessage() {
+				if !finalMessageHandled[resp.GoRoutineIndex()] {
+					slog.Info(fmt.Sprintf("Final message received for go-routine %v on func %v", resp.GoRoutineIndex(), i))
+					finalMessageHandled[resp.GoRoutineIndex()] = true
+					nReqResps.Add(sums[resp.GoRoutineIndex()])
+					wgWriters.Done()
+				}
+				return nil
+			}
+
+			sums[resp.GoRoutineIndex()] += 1
+
+			return nil
+		}
+		callbacks[i] = handlerFunc
+	}
 
 	//goland:noinspection GoVetUnsafePointer
 	respHandler := func(resp *requestTestStruct, status ClientStatus) error {
 
 		// look up the handler function
-		handlerFuncPtr, ok := callbacks.Load(uintptr(resp.Callback))
+		handlerFuncPtr, ok := callbacks[int(resp.Callback)]
 		if !ok {
 			return fmt.Errorf("could not find handler function for callback %v", resp.Callback)
 		}
 
 		// call the handler function
-		handlerFunc := handlerFuncPtr.(func(*requestTestStruct, ClientStatus) error)
-		return handlerFunc(resp, status)
+		return handlerFuncPtr(resp, status)
 	}
 
 	slog.Info("Creating clients")
@@ -867,7 +851,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 			1*time.Minute,
 			batchSize,
 			batchSize*5,
-			true,
+			false,
 			func(values []*requestTestStruct) error {
 				return client.SendBatchUnsafe(values)
 			},
@@ -888,20 +872,17 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	extraData := [ExtraDataSize]byte{}
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
-		callbackPtr := addrOfHandlerFuncA
-		if i%2 == 0 {
-			callbackPtr = addrOfHandlerFuncB
-		}
+		memMgr := snail_mem.NewSingleThreadedCircularBufferTestMemMgr[requestTestStruct](1024)
 
 		batcher := batchers[i]
-		testMessage := &requestTestStruct{
-			Header:    12345,
-			ID1:       int64(i),
-			Callback:  int64(callbackPtr),
-			ExtraData: extraData,
-		}
 
 		for withinTestWindow.Load() {
+			randInt := rand.Int()
+			testMessage := memMgr.Allocator()
+			testMessage.Header = 12345
+			testMessage.ID1 = int64(i)
+			testMessage.Callback = int64(randInt % nHandlerFuncs)
+			testMessage.ExtraData = extraData
 			batcher.Add(testMessage)
 		}
 
@@ -909,7 +890,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		batcher.Add(&requestTestStruct{
 			Header:    -1,
 			ID1:       int64(i),
-			Callback:  int64(callbackPtr),
+			Callback:  int64(i % nHandlerFuncs),
 			ExtraData: extraData,
 		})
 
