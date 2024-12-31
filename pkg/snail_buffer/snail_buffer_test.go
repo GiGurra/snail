@@ -324,7 +324,7 @@ func TestByteBuffer_WriteReadAsIoWriterReader(t *testing.T) {
 	}
 
 	// reading again should return EOF
-	n, err = bb.Read(val)
+	_, err = bb.Read(val)
 	if err == nil {
 		t.Errorf("Expected EOF, got nil")
 	}

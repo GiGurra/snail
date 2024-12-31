@@ -154,7 +154,7 @@ func TestNewServer_send_1_GB(t *testing.T) {
 
 	for atomicCounter.Load() < int64(numTotalMessages) {
 		select {
-		case _ = <-recvSignal:
+		case <-recvSignal:
 		case <-time.After(1 * time.Second):
 			t.Fatalf("timeout waiting for message")
 			return
