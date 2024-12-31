@@ -24,16 +24,84 @@ func main() {
 }
 
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
-	return func(buf *snail_buffer.Buffer) error {
 
-		if buf == nil {
+	//writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
+	state := requestState{}
+
+	return func(readBuf *snail_buffer.Buffer) error {
+
+		if readBuf == nil {
 			slog.Warn("Connection closed")
 			return nil
 		}
 
 		// Read the request
-		strReceived := string(buf.UnderlyingReadable())
-		fmt.Println(strReceived)
+		fmt.Println(string(readBuf.UnderlyingReadable()))
+		fmt.Println("----")
+		// Loop over lines
+		newState := state
+		bytes := readBuf.UnderlyingReadable()
+		for i, b := range bytes {
+			if b == '\r' {
+				// ignore
+				continue
+			}
+
+			if !newState.StartLineReading && !newState.StartLineReceived {
+				// First character must be G for GET, the rest is ignored
+				if b != 'G' {
+					return fmt.Errorf("unsupported request method: %c", b)
+				}
+				newState.StartLineReading = true
+				continue
+			}
+
+			if newState.StartLineReading {
+				if b == '\n' {
+					newState.StartLine = string(bytes[:i])
+					fmt.Printf("Start line: %s\n", newState.StartLine)
+					newState.StartLineReceived = true
+					newState.StartLineReading = false
+					newState.HeadersReading = true
+					continue
+				}
+			}
+
+			if newState.HeadersReading {
+				if newState.CurrentHeaderStart <= 0 {
+					newState.CurrentHeaderStart = i
+				}
+				if b == '\n' {
+					// End of header
+					newState.HeadersReceived = true
+					headerLen := i - newState.CurrentHeaderStart
+					if headerLen == 0 {
+						// End of headers
+						newState.HeadersReading = false
+						newState.HeadersReceived = true
+						continue
+					} else {
+						header := string(bytes[newState.CurrentHeaderStart:i])
+						newState.Headers = append(newState.Headers, header)
+						fmt.Printf("Header: %s\n", header)
+						newState.CurrentHeaderStart = 0
+					}
+					continue
+				}
+			}
+
+		}
 		return nil
 	}
+}
+
+type requestState struct {
+	StartLineReading  bool
+	StartLineReceived bool
+	StartLine         string
+
+	HeadersReading     bool
+	HeadersReceived    bool
+	CurrentHeaderStart int
+	Headers            []string
 }
