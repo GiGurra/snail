@@ -2,18 +2,23 @@ package main
 
 import (
 	"fmt"
+	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"log/slog"
 	"net"
 	"strings"
+	"time"
 	"unicode"
 )
 
 func main() {
 	// This is a dummy http1.1 server
 	port := 8080
-	srv, err := snail_tcp.NewServer(newHandlerFunc, &snail_tcp.SnailServerOpts{Port: port})
+	srv, err := snail_tcp.NewServer(newHandlerFunc, &snail_tcp.SnailServerOpts{
+		Port:        port,
+		ReadBufSize: 128 * 1024,
+	})
 	if err != nil {
 		panic(fmt.Errorf("failed to create server: %w", err))
 	}
@@ -38,6 +43,27 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 			 |
 			 |`,
 	)
+
+	finalWriteBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
+	batcher := snail_batcher.NewSnailBatcher[[]byte](
+		10,
+		20,
+		false,
+		1*time.Second,
+		func(i [][]byte) error {
+			finalWriteBuf.Reset()
+			for _, b := range i {
+				finalWriteBuf.WriteBytes(b)
+			}
+			err := snail_tcp.SendAll(conn, finalWriteBuf.Underlying())
+			if err != nil {
+				return fmt.Errorf("failed to send response: %w", err)
+			}
+			return nil
+		},
+	)
+
+	slog.Info(fmt.Sprintf("created batcher with capacity %v", batcher))
 
 	return func(readBuf *snail_buffer.Buffer) error {
 
@@ -115,6 +141,8 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		for i := 0; i < responsesToSend; i++ {
 			writeBuf.WriteString(defaultResponse)
 		}
+		//batcher.Add(copyBytes(writeBuf.Underlying()))
+		//batcher.Flush()
 		err := snail_tcp.SendAll(conn, writeBuf.Underlying())
 		if err != nil {
 			return fmt.Errorf("failed to send response: %w", err)
@@ -158,4 +186,10 @@ func StripMarginWith(str string, marginChar rune) string {
 // using `|` similar to Scala's stripMargin method
 func StripMargin(str string) string {
 	return StripMarginWith(str, '|')
+}
+
+func copyBytes(src []byte) []byte {
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
 }
