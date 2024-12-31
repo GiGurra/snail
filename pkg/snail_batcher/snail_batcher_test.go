@@ -6,14 +6,12 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_test_util"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"log/slog"
 	"testing"
 	"time"
 )
 
-func TestPerfOfNewSnailBatcher(t *testing.T) {
+func TestPerfOfNewSnailBatcher2(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -28,11 +26,11 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 	t0 := time.Now()
 	go func() {
 
-		batcher := NewSnailBatcher[int](
-			1*time.Minute, // dont want the tickers interfering
+		batcher := NewSnailBatcher2[int](
 			batchSize,
 			batchSize*2,
 			true,
+			1*time.Minute, // dont want the tickers interfering
 			func(values []int) error {
 				resultsChannel <- values
 				return nil
@@ -77,7 +75,7 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 }
 
-func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
+func TestPerfOfNewSnailBatcher2_efficientRoutines(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -93,11 +91,11 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 	go func() {
 
 		lop.ForEach(lo.Range(nGoRoutines), func(_ int, _ int) {
-			batcher := NewSnailBatcher[int](
-				1*time.Minute, // dont want the tickers interfering
+			batcher := NewSnailBatcher2[int](
 				batchSize,
 				batchSize*2,
 				true,
+				1*time.Minute, // dont want the tickers interfering
 				func(values []int) error {
 					resultsChannel <- values
 					return nil
@@ -141,7 +139,7 @@ func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 }
 
-func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
+func TestPerfOfNewSnailBatcher2_inEfficientRoutines(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -150,11 +148,11 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	nGoRoutines := 100
 
 	nReceived := int64(0)
-	batcher := NewSnailBatcher[int](
-		1*time.Minute, // dont want the tickers interfering
+	batcher := NewSnailBatcher2[int](
 		batchSize,
 		batchSize*5,
 		true,
+		1*time.Minute, // dont want the tickers interfering
 		func(values []int) error {
 			nReceived += int64(len(values))
 			return nil
@@ -190,7 +188,7 @@ func TestPerfOfNewSnailBatcher_inEfficientRoutines(t *testing.T) {
 	slog.Info(fmt.Sprintf("Send Rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
 }
 
-func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
+func TestNewSnailBatcher2_flushesAfterTimeout(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -200,11 +198,11 @@ func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
 
 	resultsChannel := make(chan []int, 1)
 
-	batcher := NewSnailBatcher[int](
-		flushTime,
+	batcher := NewSnailBatcher2[int](
 		batchSize,
 		batchSize*2,
 		true,
+		flushTime,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -242,7 +240,7 @@ func TestNewSnailBatcher_flushesAfterTimeout(t *testing.T) {
 	}
 }
 
-func TestNewSnailBatcher_flushesAfterTimeout1s(t *testing.T) {
+func TestNewSnailBatcher2_flushesAfterTimeout1s(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -252,11 +250,11 @@ func TestNewSnailBatcher_flushesAfterTimeout1s(t *testing.T) {
 
 	resultsChannel := make(chan []int, 1)
 
-	batcher := NewSnailBatcher[int](
-		flushTime,
+	batcher := NewSnailBatcher2[int](
 		batchSize,
 		batchSize*2,
 		true,
+		flushTime,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -298,7 +296,7 @@ func TestNewSnailBatcher_flushesAfterTimeout1s(t *testing.T) {
 	}
 }
 
-func TestNewSnailBatcher_manualFlush(t *testing.T) {
+func TestNewSnailBatcher2_manualFlush(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -308,11 +306,11 @@ func TestNewSnailBatcher_manualFlush(t *testing.T) {
 
 	resultsChannel := make(chan []int, 1)
 
-	batcher := NewSnailBatcher[int](
-		flushTime,
+	batcher := NewSnailBatcher2[int](
 		batchSize,
 		batchSize*2,
 		true,
+		flushTime,
 		func(values []int) error {
 			resultsChannel <- values
 			return nil
@@ -349,10 +347,4 @@ func TestNewSnailBatcher_manualFlush(t *testing.T) {
 	if timeElapsed > 500*time.Millisecond {
 		t.Fatalf("Received too late")
 	}
-}
-
-var prettyPrinter = message.NewPrinter(language.English)
-
-func prettyInt3Digits(n int64) string {
-	return prettyPrinter.Sprintf("%d", n)
 }

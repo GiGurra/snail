@@ -422,7 +422,7 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 		nil,
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts[int32, int32]{Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize)},
+		&SnailServerOpts[int32, int32]{Batcher: NewBatcherOpts(batchSize)},
 	)
 
 	if err != nil {
@@ -484,10 +484,10 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
 		batchers[i] = snail_batcher.NewSnailBatcher[int32](
-			1*time.Minute,
 			batchSize,
 			batchSize*2,
 			true,
+			1*time.Minute,
 			func(values []int32) error {
 				return client.SendBatchUnsafe(values)
 			},
@@ -578,7 +578,9 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 		nil,
 		codec.Parser,
 		codec.Writer,
-		&SnailServerOpts[stupidJsonStruct, stupidJsonStruct]{Batcher: NewBatcherOpts(batchSize)},
+		&SnailServerOpts[stupidJsonStruct, stupidJsonStruct]{
+			Batcher: NewBatcherOpts(batchSize),
+		},
 	)
 
 	if err != nil {
@@ -639,10 +641,10 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
 		batchers[i] = snail_batcher.NewSnailBatcher[stupidJsonStruct](
-			1*time.Minute,
 			batchSize,
 			batchSize*2,
 			true,
+			1*time.Minute,
 			func(values []stupidJsonStruct) error {
 				return client.SendBatchUnsafe(values)
 			},
@@ -752,7 +754,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		codec.Parser,
 		codec.Writer,
 		&SnailServerOpts[*requestTestStruct, *requestTestStruct]{
-			Batcher: NewBatcherOpts(batchSize).WithQueueSize(5 * batchSize),
+			Batcher: NewBatcherOpts(batchSize),
 			PerConnCodec: func() PerConnCodec[*requestTestStruct, *requestTestStruct] {
 				underlyingCodec := newRequestTestStructCodecPooledSingleThreadAllocator(1024 * 2)
 				return PerConnCodec[*requestTestStruct, *requestTestStruct]{
@@ -848,10 +850,10 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 		client := clients[i]
 		batchers[i] = snail_batcher.NewSnailBatcher[*requestTestStruct](
-			1*time.Minute,
 			batchSize,
 			batchSize*5,
 			false,
+			1*time.Minute,
 			func(values []*requestTestStruct) error {
 				return client.SendBatchUnsafe(values)
 			},
