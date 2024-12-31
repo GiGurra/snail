@@ -34,7 +34,7 @@ Why not just use channels? Because they're too slow!
 Why not just regular mutexes? Same reason!
 */
 
-// TODO: Support callbacks for custom memory managers (allocators & deallocators)
+// TODO: Support error callbacks
 
 type SnailBatcher[T any] struct {
 	batchSize int
