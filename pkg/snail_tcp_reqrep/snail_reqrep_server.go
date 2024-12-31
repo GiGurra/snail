@@ -45,7 +45,7 @@ func (b BatcherOpts) WithDefaults() BatcherOpts {
 			b.WindowSize = 25 * time.Millisecond
 		}
 		if b.QueueSize == 0 {
-			b.QueueSize = 1000
+			b.QueueSize = 2 * b.BatchSize
 		}
 	}
 	return b
