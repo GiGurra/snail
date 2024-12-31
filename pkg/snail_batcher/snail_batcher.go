@@ -139,8 +139,7 @@ func (sb *SnailBatcher[T]) lockMutex() {
 }
 
 func (sb *SnailBatcher[T]) unlockMutex() {
-	if //goland:noinspection GoBoolExpressions
-	sb.useIdiotLock {
+	if sb.useIdiotLock {
 		sb.idiotLock.Store(false)
 	} else {
 		sb.lock.Unlock()
