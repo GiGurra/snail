@@ -1,10 +1,10 @@
 package snail_buffer
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_slice"
 	"io"
-	"slices"
 )
 
 type Endian int
@@ -75,15 +75,10 @@ func (b *Buffer) WriteInt8(val int8) {
 }
 
 func (b *Buffer) WriteInt16(val int16) {
-	// The naive implementation (just appending) seems fastest for small values, like int16
-	// For int32, an optimized version is very slightly faster,
-	// and for int64, the optimized version is significantly faster
 	if b.endian == BigEndian {
-		b.buf = append(b.buf, byte((val>>8)&0xFF))
-		b.buf = append(b.buf, byte(val&0xFF))
+		b.buf = binary.BigEndian.AppendUint16(b.buf, uint16(val))
 	} else {
-		b.buf = append(b.buf, byte(val&0xFF))
-		b.buf = append(b.buf, byte((val>>8)&0xFF))
+		b.buf = binary.LittleEndian.AppendUint16(b.buf, uint16(val))
 	}
 }
 
@@ -94,9 +89,9 @@ func (b *Buffer) ReadInt16() (int16, error) {
 
 	var val int16
 	if b.endian == BigEndian {
-		val = int16(b.buf[b.readPos])<<8 | int16(b.buf[b.readPos+1])
+		val = int16(binary.BigEndian.Uint16(b.buf[b.readPos:]))
 	} else {
-		val = int16(b.buf[b.readPos]) | int16(b.buf[b.readPos+1])<<8
+		val = int16(binary.LittleEndian.Uint16(b.buf[b.readPos:]))
 	}
 	b.readPos += 2
 	return val, nil
@@ -112,30 +107,10 @@ func (b *Buffer) ReadString(n int) (string, error) {
 }
 
 func (b *Buffer) WriteInt32(value int32) {
-
-	// This function is actually quite heavy. Below is the optimized version.
-	// Bot the capacity check and the writing is optimized.
-	// This doesn't make a huge diff for int32, but it does for int64.
-	// For int16, the naive implementation is actually faster, hence why it is kept there.
-
-	// Ensure capacity
-	start := len(b.buf)
-	if cap(b.buf)-start < 4 {
-		b.buf = slices.Grow(b.buf, 4)
-	}
-
-	b.buf = b.buf[:start+4]
-
 	if b.endian == BigEndian {
-		b.buf[start] = byte(value >> 24)
-		b.buf[start+1] = byte(value >> 16)
-		b.buf[start+2] = byte(value >> 8)
-		b.buf[start+3] = byte(value)
+		b.buf = binary.BigEndian.AppendUint32(b.buf, uint32(value))
 	} else {
-		b.buf[start] = byte(value)
-		b.buf[start+1] = byte(value >> 8)
-		b.buf[start+2] = byte(value >> 16)
-		b.buf[start+3] = byte(value >> 24)
+		b.buf = binary.LittleEndian.AppendUint32(b.buf, uint32(value))
 	}
 }
 
@@ -283,36 +258,10 @@ func (b *Buffer) UnderlyingReadableView() *Buffer {
 }
 
 func (b *Buffer) WriteInt64(value int64) {
-
-	// This function is actually quite heavy. Below is the optimized version.
-	// Bot the capacity check and the writing is optimized.
-
-	// Ensure capacity
-	start := len(b.buf)
-	if cap(b.buf)-start < 8 {
-		b.buf = slices.Grow(b.buf, 8)
-	}
-
-	b.buf = b.buf[:start+8]
-
 	if b.endian == BigEndian {
-		b.buf[start] = byte(value >> 56)
-		b.buf[start+1] = byte(value >> 48)
-		b.buf[start+2] = byte(value >> 40)
-		b.buf[start+3] = byte(value >> 32)
-		b.buf[start+4] = byte(value >> 24)
-		b.buf[start+5] = byte(value >> 16)
-		b.buf[start+6] = byte(value >> 8)
-		b.buf[start+7] = byte(value)
+		b.buf = binary.BigEndian.AppendUint64(b.buf, uint64(value))
 	} else {
-		b.buf[start] = byte(value)
-		b.buf[start+1] = byte(value >> 8)
-		b.buf[start+2] = byte(value >> 16)
-		b.buf[start+3] = byte(value >> 24)
-		b.buf[start+4] = byte(value >> 32)
-		b.buf[start+5] = byte(value >> 40)
-		b.buf[start+6] = byte(value >> 48)
-		b.buf[start+7] = byte(value >> 56)
+		b.buf = binary.LittleEndian.AppendUint64(b.buf, uint64(value))
 	}
 }
 
@@ -323,9 +272,9 @@ func (b *Buffer) ReadInt64() (int64, error) {
 
 	var val int64
 	if b.endian == BigEndian {
-		val = int64(b.buf[b.readPos])<<56 | int64(b.buf[b.readPos+1])<<48 | int64(b.buf[b.readPos+2])<<40 | int64(b.buf[b.readPos+3])<<32 | int64(b.buf[b.readPos+4])<<24 | int64(b.buf[b.readPos+5])<<16 | int64(b.buf[b.readPos+6])<<8 | int64(b.buf[b.readPos+7])
+		val = int64(binary.BigEndian.Uint64(b.buf[b.readPos:]))
 	} else {
-		val = int64(b.buf[b.readPos]) | int64(b.buf[b.readPos+1])<<8 | int64(b.buf[b.readPos+2])<<16 | int64(b.buf[b.readPos+3])<<24 | int64(b.buf[b.readPos+4])<<32 | int64(b.buf[b.readPos+5])<<40 | int64(b.buf[b.readPos+6])<<48 | int64(b.buf[b.readPos+7])<<56
+		val = int64(binary.LittleEndian.Uint64(b.buf[b.readPos:]))
 	}
 
 	b.readPos += 8

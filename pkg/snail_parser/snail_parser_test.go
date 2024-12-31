@@ -829,7 +829,7 @@ func TestReadWriteInt64BE(t *testing.T) {
 
 	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
 
-	for i := 0; i < 10_000_000; i++ {
+	for i := 0; i < 1_000_000_000; i++ {
 
 		firstValue := -rand.Int64()
 		secondValue := rand.Int64()
@@ -876,7 +876,7 @@ func TestReadWriteInt64LE(t *testing.T) {
 
 	buffer := snail_buffer.New(snail_buffer.LittleEndian, 1024)
 
-	for i := 0; i < 10_000_000; i++ {
+	for i := 0; i < 100_000_000; i++ {
 
 		firstValue := -rand.Int64()
 		secondValue := rand.Int64()
