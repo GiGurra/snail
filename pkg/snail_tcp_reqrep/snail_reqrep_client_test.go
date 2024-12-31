@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestNewClient_SendAndRespondWithJson(t *testing.T) {
@@ -776,9 +777,10 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	finalMessageHandled := make([]bool, nGoRoutines) // hack to test custom allocators
 	nReqResps := atomic.Int64{}
 
+	// Set up the final response handlers (client side)
 	wgWriters := sync.WaitGroup{}
 	wgWriters.Add(nGoRoutines)
-	respHandler := func(resp *requestTestStruct, status ClientStatus) error {
+	handlerFuncA := func(resp *requestTestStruct, status ClientStatus) error {
 
 		if resp.IsFinalMessage() {
 			if !finalMessageHandled[resp.GoRoutineIndex()] {
@@ -792,6 +794,43 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		sums[resp.GoRoutineIndex()] += 1
 
 		return nil
+	}
+	handlerFuncB := func(resp *requestTestStruct, status ClientStatus) error {
+
+		if resp.IsFinalMessage() {
+			if !finalMessageHandled[resp.GoRoutineIndex()] {
+				finalMessageHandled[resp.GoRoutineIndex()] = true
+				nReqResps.Add(sums[resp.GoRoutineIndex()])
+				wgWriters.Done()
+			}
+			return nil
+		}
+
+		sums[resp.GoRoutineIndex()] += 1
+
+		return nil
+	}
+	addrOfHandlerFuncA := uintptr(unsafe.Pointer(&handlerFuncA))
+	addrOfHandlerFuncB := uintptr(unsafe.Pointer(&handlerFuncB))
+
+	// Turns out it is faster storing uintptr as key in the map, compared to storing int64s :S. Who knows why
+	// it also turns out the sync.Map is faster than regular map... WTH :D
+	callbacks := sync.Map{}
+	callbacks.Store(addrOfHandlerFuncA, handlerFuncA)
+	callbacks.Store(addrOfHandlerFuncB, handlerFuncB)
+
+	//goland:noinspection GoVetUnsafePointer
+	respHandler := func(resp *requestTestStruct, status ClientStatus) error {
+
+		// look up the handler function
+		handlerFuncPtr, ok := callbacks.Load(uintptr(resp.Callback))
+		if !ok {
+			return fmt.Errorf("could not find handler function for callback %v", resp.Callback)
+		}
+
+		// call the handler function
+		handlerFunc := handlerFuncPtr.(func(*requestTestStruct, ClientStatus) error)
+		return handlerFunc(resp, status)
 	}
 
 	slog.Info("Creating clients")
@@ -849,11 +888,16 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 	extraData := [ExtraDataSize]byte{}
 	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
 
+		callbackPtr := addrOfHandlerFuncA
+		if i%2 == 0 {
+			callbackPtr = addrOfHandlerFuncB
+		}
+
 		batcher := batchers[i]
 		testMessage := &requestTestStruct{
 			Header:    12345,
 			ID1:       int64(i),
-			ID2:       4411222,
+			Callback:  int64(callbackPtr),
 			ExtraData: extraData,
 		}
 
@@ -865,7 +909,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		batcher.Add(&requestTestStruct{
 			Header:    -1,
 			ID1:       int64(i),
-			ID2:       4411222,
+			Callback:  int64(callbackPtr),
 			ExtraData: extraData,
 		})
 
@@ -910,7 +954,7 @@ const ExtraDataSize = 256
 type requestTestStruct struct {
 	Header    int32
 	ID1       int64
-	ID2       int64
+	Callback  int64
 	ExtraData [ExtraDataSize]byte
 }
 
@@ -970,7 +1014,7 @@ func newRequestTestStructCodecA(
 				return invalid(fmt.Errorf("failed to parse id1: %w", err))
 			}
 
-			res.Value.ID2, err = buffer.ReadInt64()
+			res.Value.Callback, err = buffer.ReadInt64()
 			if err != nil {
 				return invalid(fmt.Errorf("failed to parse id2: %w", err))
 			}
@@ -988,7 +1032,7 @@ func newRequestTestStructCodecA(
 
 			buffer.WriteInt32(t.Header)
 			buffer.WriteInt64(t.ID1)
-			buffer.WriteInt64(t.ID2)
+			buffer.WriteInt64(t.Callback)
 			buffer.WriteBytes(t.ExtraData[:])
 
 			deallocator(t)
