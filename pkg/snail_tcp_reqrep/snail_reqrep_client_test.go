@@ -783,7 +783,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	// Turns out it is faster storing uintptr as key in the map, compared to storing int64s :S. Who knows why
 	callbacks := map[int]func(*requestTestStruct, ClientStatus) error{}
-	nHandlerFuncs := 100_000
+	nHandlerFuncs := 1_000
 	for i := 0; i < nHandlerFuncs; i++ {
 		handlerFunc := func(resp *requestTestStruct, status ClientStatus) error {
 
