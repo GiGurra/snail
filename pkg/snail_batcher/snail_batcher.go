@@ -120,7 +120,6 @@ func (sb *SnailBatcher[T]) addUnsafe(item T) {
 // It's partially a spinlock, so it's not ideal for many cases
 // of low contention - but for some! Generally only use client side
 // when you know you have many writers.
-// const useIdiotLock = true
 
 func (sb *SnailBatcher[T]) lockMutex() {
 
