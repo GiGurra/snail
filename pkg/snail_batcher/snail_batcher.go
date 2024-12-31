@@ -123,8 +123,7 @@ func (sb *SnailBatcher[T]) addUnsafe(item T) {
 
 func (sb *SnailBatcher[T]) lockMutex() {
 
-	if //goland:noinspection GoBoolExpressions
-	sb.useIdiotLock {
+	if sb.useIdiotLock {
 
 		for !sb.idiotLock.CompareAndSwap(false, true) {
 			if rand.Float32() < 0.001 {
