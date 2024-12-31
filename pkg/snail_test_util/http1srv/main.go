@@ -49,7 +49,7 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		10,
 		20,
 		false,
-		1*time.Second,
+		5*time.Millisecond,
 		func(i [][]byte) error {
 			finalWriteBuf.Reset()
 			for _, b := range i {
@@ -63,11 +63,10 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		},
 	)
 
-	slog.Info(fmt.Sprintf("created batcher with capacity %v", batcher))
-
 	return func(readBuf *snail_buffer.Buffer) error {
 
 		if readBuf == nil {
+			batcher.Close()
 			//slog.Warn("Connection closed")
 			return nil
 		}
@@ -137,12 +136,16 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 		}
 
+		//fmt.Printf("Responses to send: %d\n", responsesToSend)
+
 		writeBuf.Reset()
 		for i := 0; i < responsesToSend; i++ {
 			writeBuf.WriteString(defaultResponse)
 		}
 		//batcher.Add(copyBytes(writeBuf.Underlying()))
-		//batcher.Flush()
+
+		// The batcher is kind of pointless here, as the incoming data by h2load is already so batched
+		// and pipelined, that we are already by default sending in the optimal batch size to the socket api.
 		err := snail_tcp.SendAll(conn, writeBuf.Underlying())
 		if err != nil {
 			return fmt.Errorf("failed to send response: %w", err)
