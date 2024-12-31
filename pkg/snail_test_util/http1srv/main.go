@@ -6,6 +6,8 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"log/slog"
 	"net"
+	"strings"
+	"unicode"
 )
 
 func main() {
@@ -25,7 +27,9 @@ func main() {
 
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
-	//writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
+	writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
+
+	defaultResponse := buildDefaultResponse()
 
 	return func(readBuf *snail_buffer.Buffer) error {
 
@@ -34,9 +38,6 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 			return nil
 		}
 
-		// Read the request
-		//fmt.Println(string(readBuf.UnderlyingReadable()))
-		//fmt.Println("----")
 		// Loop over lines
 		state := getRequestState{}
 		bytes := readBuf.Underlying()
@@ -61,7 +62,7 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 			if state.StartLineReading {
 				if b == '\n' {
 					state.StartLine = string(bytes[state.StartLineStart:i])
-					fmt.Printf("Start line: %s\n", state.StartLine)
+					//fmt.Printf("Start line: %s\n", state.StartLine)
 					state.StartLineReceived = true
 					state.StartLineReading = false
 					state.HeadersReading = true
@@ -81,19 +82,19 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 						// End of headers
 						state.HeadersReading = false
 						state.HeadersReceived = true
-						fmt.Println("End of headers")
+						//fmt.Println("End of headers")
 						state.RequestComplete = true
 						// TODO: Handle request
 						responsesToSend++
 						state = getRequestState{}
 						// forward the read position
 						readBuf.SetReadPos(i + 1)
-						readBuf.DiscardReadBytes()
+						//readBuf.DiscardReadBytes()
 						continue
 					} else {
 						header := string(bytes[state.CurrentHeaderStart:i])
 						state.Headers = append(state.Headers, header)
-						fmt.Printf("Header: %s\n", header)
+						//fmt.Printf("Header: %s\n", header)
 						state.CurrentHeaderStart = 0
 					}
 					continue
@@ -101,8 +102,29 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 			}
 
 		}
+
+		writeBuf.Reset()
+		for i := 0; i < responsesToSend; i++ {
+			writeBuf.WriteString(defaultResponse)
+		}
+		err := snail_tcp.SendAll(conn, writeBuf.Underlying())
+		if err != nil {
+			return fmt.Errorf("failed to send response: %w", err)
+		}
 		return nil
 	}
+}
+
+func buildDefaultResponse() string {
+	return StripMargin(
+		`|HTTP/1.1 200 OK
+			|Server: snail
+			|Date: Mon, 27 Jul 2009 12:28:53 GMT
+			|Connection: keep-alive
+			|Content-Length: 0
+			|
+			|`,
+	)
 }
 
 type getRequestState struct {
@@ -117,4 +139,27 @@ type getRequestState struct {
 	Headers            []string
 
 	RequestComplete bool
+}
+
+// StripMarginWith Accepts a string and a `marginChar` rune to strip margins
+// from a multiline string similar to Scala's stripMargin method
+func StripMarginWith(str string, marginChar rune) string {
+	lines := strings.Split(str, "\n")
+
+	for i, line := range lines {
+		strippedLine := strings.TrimLeftFunc(line, unicode.IsSpace)
+		if len(strippedLine) > 0 && strippedLine[0] == byte(marginChar) {
+			strippedLine = strippedLine[1:]
+		}
+
+		lines[i] = strippedLine
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// StripMargin Accepts a string and strips margins from a multiline string
+// using `|` similar to Scala's stripMargin method
+func StripMargin(str string) string {
+	return StripMarginWith(str, '|')
 }
