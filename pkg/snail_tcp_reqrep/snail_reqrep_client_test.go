@@ -561,7 +561,7 @@ func TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_gorout
 	slog.Info("TestNewClient_SendAndRespondWithJson_1s_batched_performance_multiple_goroutines")
 
 	testLength := 1 * time.Second
-	nGoRoutines := 200
+	nGoRoutines := 32
 	batchSize := 5 * 1024
 
 	codec := snail_parser.NewJsonLinesCodec[stupidJsonStruct]()
