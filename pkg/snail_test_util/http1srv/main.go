@@ -11,7 +11,7 @@ import (
 func main() {
 	// This is a dummy http1.1 server
 	port := 8080
-	srv, err := snail_tcp.NewServer(nil, &snail_tcp.SnailServerOpts{Port: port})
+	srv, err := snail_tcp.NewServer(newHandlerFunc, &snail_tcp.SnailServerOpts{Port: port})
 	if err != nil {
 		panic(fmt.Errorf("failed to create server: %w", err))
 	}
@@ -25,6 +25,15 @@ func main() {
 
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 	return func(buf *snail_buffer.Buffer) error {
+
+		if buf == nil {
+			slog.Warn("Connection closed")
+			return nil
+		}
+
+		// Read the request
+		strReceived := string(buf.UnderlyingReadable())
+		fmt.Println(strReceived)
 		return nil
 	}
 }
