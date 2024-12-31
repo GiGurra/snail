@@ -12,7 +12,7 @@ import (
 
 /**
 This is an entirely new batcher based on a new algorithm.
-It's basically an n-buffer implementation - default to triple buffering.
+It's basically an n-buffer implementation - defaulting to triple buffering.
 It works like this: We have clients pushing data, 2+ buffers, and a worker.
 The worker gets data from clients when buffers have been fully written
 and enqueued to the worker, or a timeout has been reached.
