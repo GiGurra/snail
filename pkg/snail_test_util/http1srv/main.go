@@ -29,12 +29,20 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 	writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
 
-	defaultResponse := buildDefaultResponse()
+	defaultResponse := StripMargin(
+		`|HTTP/1.1 200 OK
+			 |Server: snail
+			 |Date: Mon, 27 Jul 2009 12:28:53 GMT
+			 |Connection: keep-alive
+			 |Content-Length: 0
+			 |
+			 |`,
+	)
 
 	return func(readBuf *snail_buffer.Buffer) error {
 
 		if readBuf == nil {
-			slog.Warn("Connection closed")
+			//slog.Warn("Connection closed")
 			return nil
 		}
 
@@ -113,18 +121,6 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		}
 		return nil
 	}
-}
-
-func buildDefaultResponse() string {
-	return StripMargin(
-		`|HTTP/1.1 200 OK
-			|Server: snail
-			|Date: Mon, 27 Jul 2009 12:28:53 GMT
-			|Connection: keep-alive
-			|Content-Length: 0
-			|
-			|`,
-	)
 }
 
 type getRequestState struct {
