@@ -912,7 +912,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 
 	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), elapsedSend))
 	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsedRecv))
-	slog.Info(fmt.Sprintf("Total data sent and received: %v bytes", prettyInt3Digits(totalDataBytes)))
+	slog.Info(fmt.Sprintf("Total data sent and received per direction: %v bytes", prettyInt3Digits(totalDataBytes)))
 
 	respRate := float64(nReqResps.Load()) / elapsedRecv.Seconds()
 	sendRate := float64(nReqResps.Load()) / elapsedSend.Seconds()
