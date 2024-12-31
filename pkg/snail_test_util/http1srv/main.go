@@ -79,6 +79,7 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 						// End of headers
 						newState.HeadersReading = false
 						newState.HeadersReceived = true
+						fmt.Println("End of headers")
 						continue
 					} else {
 						header := string(bytes[newState.CurrentHeaderStart:i])
