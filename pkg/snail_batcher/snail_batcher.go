@@ -12,13 +12,14 @@ import (
 
 /**
 This is an entirely new batcher based on a new algorithm.
-It works like this: We have clients, 2+ buffers, and a worker.
+It's basically an n-buffer implementation - default to triple buffering.
+It works like this: We have clients pushing data, 2+ buffers, and a worker.
 The worker gets data from clients when buffers have been fully written
 and enqueued to the worker, or a timeout has been reached.
 
-Writers write to an available back buffer. When it's full,
+Clients write to an available back buffer. When it's full,
 they push it to the worker over the push channel, and
-then pull a new buffer from the worker over the pull channel.
+then pull a new back buffer from the worker over the pull channel.
 
 Both push and pull channels are buffered.
 
@@ -28,6 +29,9 @@ must be a multiple of the batchSize.
 
 Example: Batch size of 10 and queue size of 10 means we have 2 buffers in total (double buffering).
 Batch size of 10 and queue size of 20 means we have 3 buffers in total (triple buffering).
+
+Why not just use channels? Because they're too slow!
+Why not just regular mutexes? Same reason!
 */
 
 // TODO: Support callbacks for custom memory managers (allocators & deallocators)
