@@ -105,7 +105,7 @@ Numbers:
     - half of which is the data sent back to the client
 - Request rate with http1.1 using `h2load` as load generator: 20-25 million request-responses/s 
   - We parse very minimal parts of the incoming http request for testing purposes
-  - We should probably assume `h2load` needs to be investigated to se if it is the bottleneck
+  - We should investigate `h2load` to se if it is the bottleneck
 - Request rate with json payload: 5 million request-responses/s
   - Almost all time spent in go std lib json marshalling/unmarshalling
 
