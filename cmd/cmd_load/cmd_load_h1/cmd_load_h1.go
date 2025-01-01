@@ -6,6 +6,7 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
+	"github.com/GiGurra/snail/pkg/snail_test_util"
 	"github.com/GiGurra/snail/pkg/snail_test_util/strutil"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
@@ -85,13 +86,13 @@ func Cmd() *cobra.Command {
 			}
 
 			fmt.Printf("* Will load test %s using:\n", params.Url.Value())
-			fmt.Printf("  %d connection(s)\n", params.Connections.Value())
-			fmt.Printf("  %d batch size (bytes)\n", params.BatchSizeBytes.Value())
+			fmt.Printf("  %s connection(s)\n", snail_test_util.PrettyInt3Digits(int64(params.Connections.Value())))
+			fmt.Printf("  %s batch size (bytes)\n", snail_test_util.PrettyInt3Digits(int64(params.BatchSizeBytes.Value())))
 			if params.Duration.HasValue() {
 				duration, _ := time.ParseDuration(*params.Duration.Value())
 				fmt.Printf("  %s test duration\n", duration)
 			} else if params.NumberOfRequests.HasValue() {
-				fmt.Printf("  %d request(s) total spread across connections\n", *params.NumberOfRequests.Value())
+				fmt.Printf("  %s request(s) total spread across connections\n", snail_test_util.PrettyInt3Digits(int64(*params.NumberOfRequests.Value())))
 
 				// Number of requests must be divisible by number of connections
 				if *params.NumberOfRequests.Value()%params.Connections.Value() != 0 {
