@@ -76,7 +76,7 @@ client.Send(requestStruct{Msg: "Hello"})
 ## Performance Features
 
 - Efficient batching system for high-throughput scenarios
-- Efficient Fan-In/Fan-Out pattern support
+- Efficient Fan-In/Fan-Out pattern implementation
     - Regular channels are insufficient for high-throughput scenarios, and the custom system is about 10x faster on
       average.
 - Configurable TCP options (buffer sizes)
