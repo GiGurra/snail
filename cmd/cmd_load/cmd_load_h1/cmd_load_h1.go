@@ -163,10 +163,12 @@ func Cmd() *cobra.Command {
 			// If in fixed number of requests mode, we need to calculate how many requests each client should send
 			if params.NumberOfRequests.HasValue() {
 				fmt.Println("* Starting load in fixed number of requests mode")
+				t0 := time.Now()
 				requestsPerClient := *params.NumberOfRequests.Value() / params.Connections.Value()
-				lop.ForEach(lo.Range(params.Connections.Value()), func(i int, _ int) {
+				totalBytesReceived := lo.Sum(lop.Map(lo.Range(params.Connections.Value()), func(i int, _ int) int64 {
 
 					responsesReceived := 0
+					bytesReceived := int64(0)
 					doneChan := make(chan struct{})
 
 					respHandlers[i] = func(buffer *snail_buffer.Buffer) error {
@@ -201,6 +203,7 @@ func Cmd() *cobra.Command {
 								}
 							}
 						}
+						bytesReceived += int64(buffer.ReadPos() - start)
 						buffer.DiscardReadBytes()
 
 						if responsesReceived == requestsPerClient {
@@ -217,7 +220,32 @@ func Cmd() *cobra.Command {
 					batcher.Flush()
 
 					<-doneChan
-				})
+
+					return bytesReceived
+				}))
+
+				elapsed := time.Since(t0)
+				rate := float64(*params.NumberOfRequests.Value()) / elapsed.Seconds()
+				totalBytesSent := int64(*params.NumberOfRequests.Value()) * int64(len(defaultRequestString))
+				byteRateOut := float64(totalBytesSent) / elapsed.Seconds()
+				bitRateOut := byteRateOut * 8
+				byteRateIn := float64(totalBytesReceived) / elapsed.Seconds()
+				bitRateIn := byteRateIn * 8
+				totalBytes := totalBytesSent + totalBytesReceived
+				totalByteRate := byteRateOut + byteRateIn
+				totalBitRate := bitRateOut + bitRateIn
+
+				fmt.Printf("* Done making %d requests in %s\n", *params.NumberOfRequests.Value(), elapsed)
+				fmt.Printf("* Request Rate: %s req/s\n", snail_test_util.PrettyInt3Digits(int64(rate)))
+				fmt.Printf("*  Total Bytes [out]: %s bytes\n", snail_test_util.PrettyInt3Digits(totalBytesSent))
+				fmt.Printf("*    Byte Rate [out]: %s bytes/s\n", snail_test_util.PrettyInt3Digits(int64(byteRateOut)))
+				fmt.Printf("*     Bit Rate [out]: %s bits/s\n", snail_test_util.PrettyInt3Digits(int64(bitRateOut)))
+				fmt.Printf("*   Total Bytes [in]: %s bytes\n", snail_test_util.PrettyInt3Digits(totalBytesReceived))
+				fmt.Printf("*     Byte Rate [in]: %s bytes/s\n", snail_test_util.PrettyInt3Digits(int64(byteRateIn)))
+				fmt.Printf("*      Bit Rate [in]: %s bits/s\n", snail_test_util.PrettyInt3Digits(int64(bitRateIn)))
+				fmt.Printf("*        Total Bytes: %s bytes\n", snail_test_util.PrettyInt3Digits(totalBytes))
+				fmt.Printf("*    Total Byte Rate: %s bytes/s\n", snail_test_util.PrettyInt3Digits(int64(totalByteRate)))
+				fmt.Printf("*     Total Bit Rate: %s bits/s\n", snail_test_util.PrettyInt3Digits(int64(totalBitRate)))
 
 			} else if params.Duration.HasValue() {
 				exitWithError("Duration mode not implemented")
