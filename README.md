@@ -115,7 +115,8 @@ Numbers:
     - half of which is the data sent to the server
     - half of which is the data sent back to the client
 - Request rate with json payload: 5 million request-responses/s
-  - Almost all time spent in go std lib json marshalling/unmarshalling
+  - Almost all time spent in go std lib json marshalling/unmarshalling (>80%)
+  - We should try a more efficient json parsing/encoding library
 
 What does `request-responses` mean?
 - A request is exactly one go function call with the request type as argument
