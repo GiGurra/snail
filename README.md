@@ -110,10 +110,10 @@ learned:
 * The Go standard library mutex implementation performs wildly different on different platforms and in different
   contention levels. For example, on MacOS using Apple Silicon, if is very fast if not contended - but if contended, it
   is incredibly very slow between 2-8 concurrent goroutines (only achieving single digit million of operations per
-  second). Surprisingly, above that it actually becomes faster (not just more efficient), leveling off around 10-12
-  million operations/s (tested on m4 pro). The implementation on Linux on the other hand is, faster than MacOS up to
-  around 10-20 concurrent goroutines, after which the MacOS implementation takes the lead (the goland profiler suggests
-  the macos implementation gets stuck in usleep operations too long).
+  second, compared to 100-150 m/s at zero contention). Surprisingly, above that it actually becomes faster (not just
+  more efficient), leveling off around 10-12 million operations/s (tested on m4 pro). The implementation on Linux on the
+  other hand is, faster than MacOS up to around 10-20 concurrent goroutines, after which the MacOS implementation takes
+  the lead (the goland profiler suggests the macos implementation gets stuck in usleep operations too long).
     * Either way, just having a mutex is not fast enough on either system. it is faster than channels by 2-5x, but this
       is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
