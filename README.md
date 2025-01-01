@@ -116,6 +116,7 @@ Numbers:
     - half of which is the data sent back to the client
 - Request rate with json payload: 5 million request-responses/s
   - Almost all time spent in go std lib json marshalling/unmarshalling (>80%)
+  - A considerable amount of time spent in memory allocation
   - We should try a more efficient json parsing/encoding library
 
 What does `request-responses` mean?
