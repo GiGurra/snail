@@ -48,7 +48,8 @@ func someOperation(data Data) SomeResult {
 I want to be able to program against a request-response interface, with normally sized requests and responses, while
 still achieving throughput/bandwidth in GBit/s in the same order of magnitude of loopback network interface as I would
 if using pure network performance tools such as `iperf3` (Which btw, achieved around 130 GBit/s on my linux machine).
-That is the goal of this library - whether we've reached it or not I'll leave up to you to decide.
+That is the goal of this library - whether we've reached it or not I'll leave up to you to decide. This is basically
+orders of magnitude faster than regular request-response patterns over TCP, so it's probably a bit ambitious :).
 
 ## High level design/solution?
 
