@@ -110,7 +110,7 @@ learned:
 * The Go standard library mutex implementation performs wildly different on different platforms and in different
   contention levels. For example, on MacOS using Apple Silicon, if is very fast if not contended - but if contended, it
   is incredibly very slow between 2-8 concurrent goroutines (only achieving single digit million of operations per
-  second, compared to 100-150 m/s at zero contention). Surprisingly, above that it actually becomes faster (not just
+  second, compared to 100-150 m/s at zero contention). Surprisingly, above 2-8 it actually becomes faster (not just
   more efficient), leveling off around 10-12 million operations/s (tested on m4 pro). The implementation on Linux on the
   other hand is, faster than MacOS up to around 10-20 concurrent goroutines, after which the MacOS implementation takes
   the lead (the goland profiler suggests the macos implementation gets stuck in usleep operations too long).
