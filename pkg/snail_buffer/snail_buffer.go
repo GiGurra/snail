@@ -129,9 +129,9 @@ func (b *Buffer) ReadInt32() (int32, error) {
 
 	var val int32
 	if b.endian == BigEndian {
-		val = int32(b.buf[b.readPos])<<24 | int32(b.buf[b.readPos+1])<<16 | int32(b.buf[b.readPos+2])<<8 | int32(b.buf[b.readPos+3])
+		val = int32(binary.BigEndian.Uint32(b.buf[b.readPos:]))
 	} else {
-		val = int32(b.buf[b.readPos]) | int32(b.buf[b.readPos+1])<<8 | int32(b.buf[b.readPos+2])<<16 | int32(b.buf[b.readPos+3])<<24
+		val = int32(binary.LittleEndian.Uint32(b.buf[b.readPos:]))
 	}
 	b.readPos += 4
 	return val, nil
