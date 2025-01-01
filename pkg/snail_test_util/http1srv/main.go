@@ -46,8 +46,8 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 	finalWriteBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
 	batcher := snail_batcher.NewSnailBatcher[[]byte](
-		10,
-		20,
+		1,
+		2,
 		false,
 		5*time.Millisecond,
 		func(i [][]byte) error {
@@ -117,12 +117,9 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 						state.HeadersReceived = true
 						//fmt.Println("End of headers")
 						state.RequestComplete = true
-						// TODO: Handle request
 						responsesToSend++
 						state = getRequestState{}
-						// forward the read position
 						readBuf.SetReadPos(i + 1)
-						//readBuf.DiscardReadBytes()
 						continue
 					} else {
 						header := string(bytes[state.CurrentHeaderStart:i])
@@ -142,14 +139,14 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		for i := 0; i < responsesToSend; i++ {
 			writeBuf.WriteString(defaultResponse)
 		}
-		//batcher.Add(copyBytes(writeBuf.Underlying()))
-
-		// The batcher is kind of pointless here, as the incoming data by h2load is already so batched
-		// and pipelined, that we are already by default sending in the optimal batch size to the socket api.
-		err := snail_tcp.SendAll(conn, writeBuf.Underlying())
-		if err != nil {
-			return fmt.Errorf("failed to send response: %w", err)
-		}
+		batcher.Add(copyBytes(writeBuf.Underlying()))
+		//
+		//The batcher is kind of pointless here, as the incoming data by h2load is already so batched
+		//and pipelined, that we are already by default sending in the optimal batch size to the socket api.
+		//err := snail_tcp.SendAll(conn, writeBuf.Underlying())
+		//if err != nil {
+		//	return fmt.Errorf("failed to send response: %w", err)
+		//}
 		return nil
 	}
 }
