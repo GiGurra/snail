@@ -93,7 +93,7 @@ learned:
         * How to handle the return trip of trans, and how the different responses are most efficiently delivered back to
           the original goroutines/sources of the requests. This can be in totally different order than the requests were
           made.
-* Channels are surprisingly slow for high-contention scenarios
+* Go channels are surprisingly slow for high-contention scenarios
     * You can expect single digit millions of elements per second on a highly contended fan-in channel, while reaching
       maybe 30-40 million elements per second on a non-contended channel. Our situation is by design highly contended,
       and we aim for 100s of millions of elements per second - therefor a pure channel based fan-in is not an option (
