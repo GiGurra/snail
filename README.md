@@ -217,6 +217,8 @@ func main() {
 ```go
 package yourpackage
 
+import "time"
+
 func main() {
 	client, err := NewClient[requestStruct, responseStruct](
 		"localhost",
@@ -224,6 +226,7 @@ func main() {
 		nil,
 		func(resp responseStruct, status ClientStatus) error {
 			fmt.Printf("Received response: %v\n", resp)
+			// Fan-out is optional, but should be added here if you want to have an rpc like interface
 			return nil
 		},
 		reqCodec.Writer,  // just a function
@@ -232,6 +235,9 @@ func main() {
 
 	// Send a request
 	client.Send(requestStruct{Msg: "Hello"})
+
+	// do other stuff... or just sleep
+	time.Sleep(1 * time.Second)
 }
 
 ```
