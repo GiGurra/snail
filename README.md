@@ -125,7 +125,7 @@ learned:
   rate (which we want to, see below), you'll need to either avoid allocations entirely, or use a custom memory
   allocator/object pooling.
 * Circular buffers are awesome. Double/triple buffers are awesome. Atomics are awesome :).
-    * This is how `snail` achieves its throughput in batching.
+    * This is partially how `snail` achieves its throughput in batching.
 * Be prepared to experiment with custom mutex implementations.
 * Be prepared to write custom memory allocators.
 * Be prepared to write custom data serializers/deserializers
