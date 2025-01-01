@@ -130,6 +130,7 @@ learned:
 * Be prepared to write custom memory allocators.
 * Be prepared to write custom data serializers/deserializers
 * Be prepared to write custom data structures.
+* Be prepared to write custom queueing, buffering and batching mechanisms. 
 * Be prepared to spend a lot of time in the profiler. The profiler is your friend.
 
 ## Features
