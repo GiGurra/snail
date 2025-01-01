@@ -11,7 +11,7 @@ const (
 	// ParseOneStatusOK means that an object could be parsed
 	ParseOneStatusOK ParseOneStatus = iota
 	// ParseOneStatusNEB means that not enough data was available to parse an object.
-	// This is normal in streamed data environments. It is expected to be called again once more data is available.
+	// This is normal in streamed environments. It is expected to be called again once more data is available.
 	ParseOneStatusNEB ParseOneStatus = iota
 )
 
