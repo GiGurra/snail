@@ -139,7 +139,7 @@ batchOpts := BatcherOpts{
 
 ## License
 
-[Add your license here]
+MIT
 
 ## Contributing
 
