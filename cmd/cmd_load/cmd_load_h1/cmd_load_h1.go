@@ -40,19 +40,16 @@ func (p *Params) WithValidation() *Params {
 		return nil
 	}
 	p.Duration.CustomValidator = func(durationStr string) error {
-		if p.Duration.HasValue() {
-			d, err := time.ParseDuration(durationStr)
-			if err != nil {
-				return fmt.Errorf("duration is not valid: %v", err)
-			} else if d.Seconds() < 1.0 {
-				return fmt.Errorf("duration must be at least 1 second")
-			}
-
+		d, err := time.ParseDuration(durationStr)
+		if err != nil {
+			return fmt.Errorf("duration is not valid: %v", err)
+		} else if d.Seconds() < 1.0 {
+			return fmt.Errorf("duration must be at least 1 second")
 		}
 		return nil
 	}
 	p.NumberOfRequests.CustomValidator = func(i int) error {
-		if p.NumberOfRequests.HasValue() && i <= 0 {
+		if i <= 0 {
 			return fmt.Errorf("number of requests must be greater than 0")
 		}
 		return nil
