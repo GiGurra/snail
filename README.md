@@ -62,10 +62,14 @@ client.Send(requestStruct{Msg: "Hello"})
 ## Performance Features
 
 - Efficient batching system for high-throughput scenarios
-- Configurable TCP options (NoDelay, buffer sizes)
+- Efficient Fan-In/Fan-Out pattern support
+- Configurable TCP options (buffer sizes)
+- Configurable for both latency and throughput use cases
+
+### Experimental features used in testing and benchmarking
+
 - Memory pooling for reduced GC pressure
 - Support for custom allocators
-- Optimized for both latency and throughput use cases
 
 ## Main Components
 
