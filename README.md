@@ -86,7 +86,7 @@ client.Send(requestStruct{Msg: "Hello"})
 Measured on 7950x3d with 64GB of 6000MT/s dual channel RAM over loopback tcp connections:
 
 - Total bandwidth: 240-250 GBit/s (half client->server, half server->client)
-  - achieved using large byte chunks without much parsing
+  - achieved using larger (10kB+) byte chunks as messages without much parsing
 - Request rate with small, individually processed, messages (4 Bytes/message): 300-350 million requests/s
 - Request rate with "regular", individually processed, messages (250 Bytes/message): 30 million requests/s 
   - (125-150 Gbit/s)
