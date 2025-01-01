@@ -144,6 +144,8 @@ learned:
 * Be prepared to write custom data structures.
 * Be prepared to write custom queueing, buffering and batching mechanisms.
 * Be prepared to spend a lot of time in the profiler. The profiler is your friend.
+* Back pressure the entire chain if you don't want to run out of memory. This is in practice guaranteed with `snail` by
+  using blocking io and queueing operations and appropriately configured buffer sizes.
 
 ## Features
 
