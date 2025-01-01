@@ -115,7 +115,7 @@ learned:
   implementation on Linux on the other hand has a more smooth performance curve, gradually going down to 20-25 million
   operations/second on my computer (see specs below) - faster than MacOS up to around 10-20 concurrent goroutines, after
   which the MacOS implementation takes the lead (the goland profiler suggests the macos implementation gets stuck in
-  usleep operations too long).
+  usleep operations too long, and you need to have more goroutines to counter this effect).
     * Either way, just having a mutex is not fast enough on either system. it is faster than channels by 2-5x, but this
       is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
