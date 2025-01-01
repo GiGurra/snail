@@ -43,6 +43,13 @@ func someOperation(data Data) SomeResult {
 }
 ```
 
+## Performance Goal
+
+I want to be able to program against a request-response interface, with normally sized requests and responses, while
+still achieving throughput/bandwidth in GBit/s in the same order of magnitude of loopback network interface as I would
+if using pure network performance tools such as `iperf3` (Which btw, achieved around 130 GBit/s on my linux machine).
+That is the goal of this library - whether we've reached it or not I'll leave up to you to decide.
+
 ## High level design/solution?
 
 How can this be addressed? Have you ever played a game such as Transport Tycoon? In that game you try to build a
@@ -121,10 +128,10 @@ learned:
       contention scenarios, but this alone is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
   problem entirely on their own.
-* Memory allocation is grossly expensive in Go (and in non-moving/non-generational systems). At about 10-20 GB/s on my
-  linux machine, you will be spending all of your time in memory allocation. So if you want to shuffle data at that
-  rate (which we want to, see below), you'll need to either avoid allocations entirely, or use a custom memory
-  allocator/object pooling.
+* Memory allocation is grossly expensive in Go (and in most non-moving/non-generational systems) when you try to shuffle
+  around 10-20 GB/s (see below why this number mattersn). On my linux machine, you will be spending all of your time in
+  memory allocation. So if you want to shuffle data at that rate (which we want to, see below), you'll need to either
+  avoid allocations entirely, or use a custom memory allocator/object pooling.
 * Circular buffers are awesome. Double/triple buffers are awesome. Atomics are awesome :).
     * This is partially how `snail` achieves its throughput in batching.
 * Be prepared to experiment with custom mutex implementations.
