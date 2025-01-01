@@ -21,11 +21,17 @@ go get github.com/GiGurra/snail
 
 ## Quick Start
 
-### Simple JSON Server
 
+### Shared
+    
 ```go
 reqCodec := snail_parser.NewJsonLinesCodec[requestStruct]()
 respCodec := snail_parser.NewJsonLinesCodec[responseStruct]()
+```
+
+### Simple JSON Server
+
+```go
 
 server, err := NewServer[requestStruct, responseStruct](
     func() ServerConnHandler[requestStruct, responseStruct] {
