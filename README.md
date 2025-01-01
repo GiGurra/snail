@@ -132,10 +132,10 @@ learned:
       contention scenarios, but this alone is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
   problem entirely on their own.
-* Memory allocation is grossly expensive in Go (and in most non-moving/non-generational systems) when you try to shuffle
-  around 10-20 GB/s (see below why this number matters). On my linux machine, you will be spending all of your CPU time
-  in memory allocation. So if you want to shuffle data at that rate (which we want to, see below), you'll need to either
-  avoid allocations entirely, or use a custom memory allocator/object pooling.
+* Memory allocation is grossly expensive in Go (and in most non-moving/non-generational systems, or so I've heard :S)
+  when you try to shuffle around 10-20 GB/s (see below why this number matters). On my linux machine, you will be
+  spending all of your CPU time in memory allocation. So if you want to shuffle data at that rate (which we want to, see
+  below), you'll need to either avoid allocations entirely, or use a custom memory allocator/object pooling.
 * Circular buffers are awesome. Double/triple buffers are awesome. Atomics are awesome :).
     * This is partially how `snail` achieves its throughput in batching.
 * Be prepared to experiment with custom mutex implementations.
