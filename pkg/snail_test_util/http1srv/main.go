@@ -49,7 +49,7 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 		64*1024,
 		2*64*1024,
 		false,
-		5*time.Millisecond, // dont need with batch size 1
+		5*time.Millisecond,
 		func(bytes []byte) error {
 
 			if len(bytes) == 0 {
