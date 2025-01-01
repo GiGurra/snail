@@ -186,6 +186,7 @@ func Cmd() *cobra.Command {
 								if b == 'H' {
 									// found the start!
 									state.Status = LookingForEnd
+									i += 20 // skip some silly amount of bytes, cheat a bit
 								}
 							case LookingForEnd:
 								if b == '\n' {
