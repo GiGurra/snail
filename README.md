@@ -91,7 +91,7 @@ Measured on
 
 Numbers:
 - Reference max bandwidth achieved on loopback: 240-250 GBit/s (using `snail`)
-  - achieved by sending larger (10kB+) byte chunks as messages
+  - achieved by sending larger byte chunks as messages
   - `hperf3` achieved only about 135 GBit/s, but I'm probably using it wrong
 - Request rate with 4 byte requests/responses: 300-350 million request-responses/s
   - Each request and response is just a single int32
