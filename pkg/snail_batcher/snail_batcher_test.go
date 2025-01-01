@@ -159,7 +159,7 @@ func TestAddManyPerformance(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
-	nItems := 100_000_000
+	nItems := 100_000_000 // increase to more when benchmarking. 100m is too little
 	batchSize := 1000
 	nGoRoutines := 12
 
@@ -169,11 +169,13 @@ func TestAddManyPerformance(t *testing.T) {
 		t.Fatalf("nItems must be a multiple of batchSize")
 	}
 
+	slog.Info("Preparing test data")
 	itemsToAdd := make([]int, nItems)
 	for i := 0; i < nItems; i++ {
 		itemsToAdd[i] = i
 	}
 
+	slog.Info("Starting test")
 	elapsedTimes := make([]time.Duration, nGoRoutines)
 	lop.ForEach(lo.Range(nGoRoutines), func(iGR int, _ int) {
 		doneSignal := make(chan struct{})
@@ -194,15 +196,12 @@ func TestAddManyPerformance(t *testing.T) {
 		)
 
 		t0 := time.Now()
-		slog.Info("adding items")
 
 		for itemsAdded := 0; itemsAdded < nItems; {
 			nToAddThisStep := min(2*batchSize/3, nItems-itemsAdded)
 			batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
 			itemsAdded += nToAddThisStep
 		}
-
-		slog.Info("waiting for results")
 
 		// wait for the done signal
 		<-doneSignal
