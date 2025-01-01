@@ -5,11 +5,10 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
+	"github.com/GiGurra/snail/pkg/snail_test_util/strutil"
 	"log/slog"
 	"net"
-	"strings"
 	"time"
-	"unicode"
 )
 
 func main() {
@@ -36,7 +35,7 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 	writeBuf := snail_buffer.New(snail_buffer.BigEndian, 64*1024)
 
 	dateStr := time.Now().Format(time.RFC1123)
-	defaultResponse := []byte(StripMargin(
+	defaultResponse := []byte(strutil.StripMargin(
 		`|HTTP/1.1 200 OK
 			 |Server: snail
 			 |Date: ` + dateStr + `
@@ -165,27 +164,4 @@ type getRequestState struct {
 
 	CurrentHeaderStart int
 	Headers            []string
-}
-
-// StripMarginWith Accepts a string and a `marginChar` rune to strip margins
-// from a multiline string similar to Scala's stripMargin method
-func StripMarginWith(str string, marginChar rune) string {
-	lines := strings.Split(str, "\n")
-
-	for i, line := range lines {
-		strippedLine := strings.TrimLeftFunc(line, unicode.IsSpace)
-		if len(strippedLine) > 0 && strippedLine[0] == byte(marginChar) {
-			strippedLine = strippedLine[1:]
-		}
-
-		lines[i] = strippedLine
-	}
-
-	return strings.Join(lines, "\n")
-}
-
-// StripMargin Accepts a string and strips margins from a multiline string
-// using `|` similar to Scala's stripMargin method
-func StripMargin(str string) string {
-	return StripMarginWith(str, '|')
 }
