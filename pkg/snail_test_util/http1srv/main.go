@@ -14,10 +14,11 @@ import (
 
 func main() {
 	// This is a dummy http1.1 server
-	port := 8080
+	//port := 8080
+	port := 9080
 	srv, err := snail_tcp.NewServer(newHandlerFunc, &snail_tcp.SnailServerOpts{
 		Port:        port,
-		ReadBufSize: 128 * 1024,
+		ReadBufSize: 64 * 1024,
 	})
 	if err != nil {
 		panic(fmt.Errorf("failed to create server: %w", err))
