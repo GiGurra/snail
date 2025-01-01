@@ -153,6 +153,10 @@ go get github.com/GiGurra/snail
 
 ## Quick Start
 
+Below is an example using a very basic json messaging format. This is mostly for educational purposes, as it uses
+golang's built-in json library which is not the most efficient (aside from JSON itself not exactly being the most
+efficient format). See performance numbers further down for more information.
+
 ### Shared
 
 ```go
