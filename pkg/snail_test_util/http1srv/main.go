@@ -199,9 +199,3 @@ func StripMarginWith(str string, marginChar rune) string {
 func StripMargin(str string) string {
 	return StripMarginWith(str, '|')
 }
-
-func copyBytes(src []byte) []byte {
-	dst := make([]byte, len(src))
-	copy(dst, src)
-	return dst
-}
