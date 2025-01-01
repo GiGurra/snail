@@ -51,8 +51,8 @@ if using pure network performance tools such as `iperf3` (Which btw, achieved ar
 That is the goal of this library - whether we've reached it or not I'll leave up to you to decide. This is basically
 orders of magnitude faster than regular request-response patterns over TCP, so it's probably a bit ambitious.
 
-But if we could send requests and responses at a rate that basically maxed out our available physical network bandwidth,
-wouldn't that be neat :).
+But if we could send small requests and responses at a rate that basically maxed out our available physical network
+bandwidth, wouldn't that be neat :).
 
 ## High level design/solution?
 
