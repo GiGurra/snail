@@ -2,11 +2,11 @@ Here's a what Anthropic claude 3.5 sonnet thinks about this project:
 
 # Snail 🐌
 
-A high-throughput networking library focusing on TCP communication with request-response patterns.
+A high-throughput networking library prototype focusing on TCP communication with request-response patterns.
 
 While this library and README is focused on TCP communication, the implementation is modular and its usefulness is not
 specific to TCP - I just chose it as the first use-case. The library is designed to be cherry-picked from for other
-situations. For example, it would probably also be useful for creating fast solutions for storing logs to files,
+situations. For example, it would probably also be useful for creating fast solutions for writing to log files,
 batching requests to other system devices, or other similar scenarios.
 
 ## Initial Motivation
@@ -18,14 +18,15 @@ systems is incredibly inefficient for the request-response pattern. While reques
 user/developer a sense of the operations being lightweight RPCs similar to regular function calls, tcp communication is
 optimized for continuous streams of data and maximizing bandwidth/throughput and managing such traffic. If you just
 write a simple naively implemented RPC over tcp, you would be lucky to achieve more than 10-20k requests/s per
-thread/goroutine.
+thread/goroutine. Regular function calls can easily reach the 100s of millions of calls per second.
 
 On the other hand, the request-response pattern is easy to reason about, easy to implement, easy to guarantee
 transactions and data/state consistency with across distributed systems. It also is the basis for a vast amount of
 existing standard tools and systems that would be difficult to live without - and sometimes/often it simply maps 1:1 to
 the real life problems. Asynchronous message passing without explicit dedicated responses (actors) suffers from the same
-fundamental problem with TCP-like transports. This project focuses on the request-response pattern, but the same
-efficiency gains presented here can be achieved in the distributed actor model as well.
+fundamental problem with TCP-like transports. This project focuses on the request-response pattern in the context of
+microservices, web servers etc, but the same efficiency gains presented here can be achieved in the distributed actor
+model as well.
 
 This library aims to make traditional request-response situations more efficient, without modifying the
 request-response programming interface used by developers, by serializing concurrent requests from high number of
@@ -33,8 +34,8 @@ parallel operations into a single data stream - both client and server side. The
 modular and to be cherry-picked from (does not 100% assume TCP or a request response pattern, but to make use of the
 full benefits of all components in this library, at least for now, TCP and request-response is assumed).
 
-In other words, your programming interface is expected to look something like this, and will stay like this after using
-`snail`:
+In other words, your programming interface is expected to look something like this, and will stay like this after
+adopting `snail`:
 
 ```go
 func someOperation(data Data) SomeResult {
@@ -55,7 +56,7 @@ This is the main mechanism we are using in this library.
 
 So, when you for example create a http client with `snail`, and make a request through it, the request is not sent
 immediately - but you still just see a regular function call and response, like with any http library. Under the hood
-though `snail` puts your request in a queue/batch. When the batch reaches a certain size, or a certain amount of time
+though, `snail` puts your request in a queue/batch. When the batch reaches a certain size, or a certain amount of time
 has passed (whichever comes first according to your configuration), the entire batch of requests is sent to the server.
 Similarly, on the server side, different requests can be processed in parallel, and finish at different times. When a
 response is ready, it is not sent immediately. Instead, it is put in a suitable batch on the server dedicated to the
@@ -63,7 +64,9 @@ client that sent the request. Different responses may join different response ba
 random and `snail` won't force you to respond in the same order the operations were requested in (although you can - if
 you want to). In the exact same way as on the client side, when the batch reaches a certain size, or a certain
 amount of time has passed (whichever comes first according to your configuration) - or some other criteria you create
-has been met (e.g. you explicitly call `SnailBatcher.Flush()`), a batch of responses is sent to the client.
+has been met (e.g. you explicitly call `SnailBatcher.Flush()`), a batch of responses is sent to the client. (Btw, the
+`SnailBatcher[ElemT]` is a generic batcher. Not connected to networking, tcp, or anything like that. It just consumes
+individual elements and outputs batches on a callback function).
 
 It's up to you to choose the batch size and the time limit for the batch to be sent, according to your needs. This is
 similar to the old Nagle algorithm - but you can configure and extend it to match the needs of the application and
@@ -71,12 +74,14 @@ larger system architecture.
 
 ### Lessons learned
 
-While building this library, many different implementations and designs were tried. It's still mostly just a prototype,
-but a few of the things have been learned:
+While building this library, many different implementations and designs were tried. The generic batcher itself is
+probably on its 10th implementation so far :). It's still mostly just a prototype, but a few of the things have been
+learned:
 
 * If you aim to create a system capable of achieving for example 100 million elements/messages per second on a global
-  level (=through the chain of steps/components in entire system including TCP transmissions), which is roughly the
-  level we aim for, each individual step in the chain must be significantly faster than this.
+  level (=through the chain of steps/components in entire system including TCP transmissions, service->service), which
+  is roughly the level we aim for, each individual step in the chain must be significantly faster than 100 million
+  elements/messages per second.
 * Implementing batching/the train station concept for request-responses is basically a challenge of:
     * Batching
         * How to pick the right batch size, how to store batches and manage memory allocation, and how to auto time
@@ -88,25 +93,38 @@ but a few of the things have been learned:
         * How to handle the return trip of trans, and how the different responses are most efficiently delivered back to
           the original goroutines/sources of the requests. This can be in totally different order than the requests were
           made.
-* Channels are surprisingly slow for high-throughput scenarios
+* Channels are surprisingly slow for high-contention scenarios
     * You can expect single digit millions of elements per second on a highly contended fan-in channel, while reaching
-      maybe 30-40 million elements per second on a non-contended channel.
+      maybe 30-40 million elements per second on a non-contended channel. Our situation is by design highly contended,
+      and we aim for 100s of millions of elements per second - therefor a pure channel based fan-in is not an option.
     * If your application did absolutely nothing else but shuffled elements of data between channels, fully utilizing
-      all cores (tests on 7950X3D below) pushing to dedicated non-contended channels, you could perhaps hit 300-400
-      million elements per second. Again, that's if your application did absolutely nothing else and had no other
-      purpose than moving elements around without and logic, fan in, fan out, computations or transmissions
-      elsewhere :).
+      all cores (tests on 7950X3D below) pushing to dedicated non-contended channels (NOT our case), you could perhaps
+      hit 300-400 million elements per second. Again, that's if your application did absolutely nothing else and had no
+      other purpose than moving elements around without and logic, without fan in, without fan out, without computations
+      or transmissions elsewhere :).
     * For efficient fan-out and fan-in when aiming for throughput on the order of 100s of millions of elements per
       second for your system as a whole/globally, channels are just simply too slow, by 1-2 orders of magnitude.
-* The standard library mutex implementation performs wildly different on different platforms. For example, on MacOS
-  using Apple Silicon, if is very fast if not contended - but if contended, it is very slow between 2-8 concurrent
-  goroutines. Above that though, it gets more and more efficient. The implementation on Linux on the other hand is,
-  faster than MacOS up to around 10-20 concurrent goroutines, after which the MacOS implementation takes the lead.
+* The Go standard library mutex implementation performs wildly different on different platforms and in different
+  contention levels. For example, on MacOS using Apple Silicon, if is very fast if not contended - but if contended, it
+  is incredibly very slow between 2-8 concurrent goroutines (only achieving single digit million of operations per
+  second). Surprisingly, above that it actually becomes faster (not just more efficient), leveling off around 10-12
+  million operations/s (tested on m4 pro). The implementation on Linux on the other hand is, faster than MacOS up to
+  around 10-20 concurrent goroutines, after which the MacOS implementation takes the lead (the goland profiler suggests
+  the macos implementation gets stuck in usleep operations too long).
+    * Either way, just having a mutex is not fast enough on either system. it is faster than channels by 2-5x, but this
+      is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
   problem.
 * Memory allocation is grossly expensive in Go (and in non-moving/non-generational systems). At about 10-20 GB/s, you
   will be spending all of your time in memory allocation. So if you want to shuffle data at that rate (which we want to,
   see below), you'll need to either avoid allocations entirely, or use a custom memory allocator/object pooling.
+* Circular buffers are awesome. Double/triple buffers are awesome. Atomics are awesome :).
+    * This is how `snail` achieves its throughput in batching.
+* Be prepared to experiment with custom mutex implementations.
+* Be prepared to write custom memory allocators.
+* Be prepared to write custom data serializers/deserializers
+* Be prepared to write custom data structures.
+* Be prepared to spend a lot of time in the profiler. The profiler is your friend.
 
 ## Features
 
