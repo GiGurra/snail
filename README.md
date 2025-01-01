@@ -100,7 +100,7 @@ Numbers:
     - half of which is the data sent back to the client
 - Request rate with 250 byte requests/responses: 20-30 million request-responses/s 
   - Each request and response is a custom struct with
-    - 3 encoded/decoded integer fields
+    - 3 encoded/decoded integer fields (1 int32 + 2 int64)
     - 1 long byte array at the end
     - custom encoder/parser
   - This equates to about 100-150 Gbit/s throughput
