@@ -360,6 +360,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - Anthropic Claude 3.5 sonnet
 - GiGurra
+- Github Copilot
 
 ## Code Authors
 
