@@ -122,6 +122,18 @@ What does `request-responses` mean?
 - A request is exactly one go function call with the request type as argument
 - A response is exactly one go function callback with the response type as argument
 
+Type used in the json tests:
+```go
+type stupidJsonStruct struct {
+  Msg            string `json:"msg"`
+  Bla            int    `json:"bla"`
+  Foo            string `json:"foo"`
+  Bar            int    `json:"bar"`
+  GoRoutineIndex int    `json:"go_routine_index"`
+  IsFinalMessage bool   `json:"is_final_message"`
+}
+```
+
 ### Experimental features used in testing and benchmarking
 
 - Memory pooling for reduced GC pressure
