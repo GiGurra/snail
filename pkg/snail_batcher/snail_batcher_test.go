@@ -161,7 +161,7 @@ func TestAddManyPerformance(t *testing.T) {
 
 	nItems := 100_000_000
 	batchSize := 1000
-	useRandomization := false
+	nGoRoutines := 12
 
 	// ensure nItems is a multiple of batchSize
 	if //goland:noinspection GoBoolExpressions
@@ -173,66 +173,52 @@ func TestAddManyPerformance(t *testing.T) {
 	for i := 0; i < nItems; i++ {
 		itemsToAdd[i] = i
 	}
-	//receivedItems := make([]int, 0, nItems)
-	doneSignal := make(chan struct{})
-	receivedCount := 0
 
-	batcher := NewSnailBatcher[int](
-		batchSize,
-		batchSize*2,
-		true,
-		1*time.Minute, // dont want the tickers interfering
-		func(values []int) error {
-			receivedCount += len(values)
-			if receivedCount == nItems {
-				close(doneSignal)
-			}
-			//receivedItems = append(receivedItems, values...)
-			//if len(receivedItems) == nItems {
-			//	close(doneSignal)
-			//}
-			return nil
-		},
-	)
+	elapsedTimes := make([]time.Duration, nGoRoutines)
+	lop.ForEach(lo.Range(nGoRoutines), func(iGR int, _ int) {
+		doneSignal := make(chan struct{})
+		receivedCount := 0
 
-	// Add in some semi random fashion
-	if //goland:noinspection GoBoolExpressions
-	useRandomization {
-		for itemsAdded := 0; itemsAdded < nItems; {
-			maxThisStep := min(3*batchSize, nItems-itemsAdded)
-			nToAddThisStep := rand.Intn(maxThisStep + 1)
-			if rand.Float64() < 0.5 { // bulk
-				batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
-				itemsAdded += nToAddThisStep
-			} else { // add one at a time
-				for i := 0; i < nToAddThisStep; i++ {
-					batcher.Add(itemsToAdd[itemsAdded])
-					itemsAdded++
+		batcher := NewSnailBatcher[int](
+			batchSize,
+			batchSize*2,
+			true,
+			1*time.Minute, // dont want the tickers interfering
+			func(values []int) error {
+				receivedCount += len(values)
+				if receivedCount == nItems {
+					close(doneSignal)
 				}
-			}
-		}
-	} else {
+				return nil
+			},
+		)
+
+		t0 := time.Now()
+		slog.Info("adding items")
+
 		for itemsAdded := 0; itemsAdded < nItems; {
 			nToAddThisStep := min(2*batchSize/3, nItems-itemsAdded)
 			batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
 			itemsAdded += nToAddThisStep
 		}
-	}
 
-	slog.Info("waiting for results")
+		slog.Info("waiting for results")
 
-	// wait for the done signal
-	<-doneSignal
+		// wait for the done signal
+		<-doneSignal
 
-	//if len(receivedItems) != nItems {
-	//	t.Fatalf("unexpected total received %d", len(receivedItems))
-	//}
-	//
-	//if !slices.Equal(itemsToAdd, receivedItems) {
-	//	t.Fatalf("unexpected items received")
-	//}
+		elapsedTimes[iGR] = time.Since(t0)
+	})
 
-	slog.Info("all results received")
+	elapsed := time.Duration(lo.Sum(lo.Map(elapsedTimes, func(d time.Duration, _ int) int64 {
+		return d.Nanoseconds()
+	})) / int64(nGoRoutines))
+
+	nItemsTot := int64(nItems) * int64(nGoRoutines)
+	rate := float64(nItemsTot) / elapsed.Seconds()
+
+	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(nItemsTot), elapsed))
+	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 
 }
 
