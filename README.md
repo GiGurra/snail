@@ -4,6 +4,25 @@ Here's a what Anthropic claude 3.5 sonnet thinks about this project:
 
 A high-performance networking library for Go focusing on TCP communication with request-response patterns.
 
+## Motivation
+
+Web servers, microservices and many system architectures are built on top of the request-response pattern.
+However, virtually all of them are built on top of tcp, and the tcp communication stack implemented in modern operating
+systems is incredibly inefficient for this pattern. While request-response designs favor small messages and low, tcp
+communication is optimized for continuous streams of data and maximizing bandwidth/throughput and managing such traffic.
+
+This library aims to make traditional request-response situations more efficient, without modifying the
+request-response programming interface used by developers, by serializing concurrent requests from high number of
+parallel operations into a single data stream - both client and server side. In other words, your programming interface
+should still look like this:
+
+```go
+func makeRequest(data Data) Response {
+// ...
+}
+
+How can this be addressed?
+
 ## Features
 
 - High-performance TCP client/server implementation
@@ -24,68 +43,81 @@ go get github.com/GiGurra/snail
 ### Shared
 
 ```go
+package yourpackage
 
 type requestStruct struct {
-    Msg string
+	Msg string
 }
 
 type responseStruct struct {
-    Msg string
+	Msg string
 }
 
-reqCodec := snail_parser.NewJsonLinesCodec[requestStruct]()
-respCodec := snail_parser.NewJsonLinesCodec[responseStruct]()
+func main() {
+	reqCodec := snail_parser.NewJsonLinesCodec[requestStruct]()
+	respCodec := snail_parser.NewJsonLinesCodec[responseStruct]()
+	// ... server/client code here
+}
 ```
 
 ### Simple JSON Server
 
 ```go
+package yourpackage
 
-server, err := NewServer[requestStruct, responseStruct](
-    func () ServerConnHandler[requestStruct, responseStruct] {
-        return func (req requestStruct, repFunc func (resp responseStruct) error) error {
-            return repFunc(responseStruct{Msg: "Hello from server"})
-        }
-    },
-    nil,
-    reqCodec.Parser,
-    respCodec.Writer,
-    nil,
-)
+func main() {
+	server, err := NewServer[requestStruct, responseStruct](
+		func() ServerConnHandler[requestStruct, responseStruct] {
+			return func(req requestStruct, repFunc func(resp responseStruct) error) error {
+				return repFunc(responseStruct{Msg: "Hello from server"})
+			}
+		},
+		nil,
+		reqCodec.Parser,
+		respCodec.Writer,
+		nil,
+	)
+}
+
 ```
 
 ### Simple JSON Client
 
 ```go
-client, err := NewClient[requestStruct, responseStruct](
-    "localhost",
-    server.Port(),
-    nil,
-    func (resp responseStruct, status ClientStatus) error {
-        fmt.Printf("Received response: %v\n", resp)
-        return nil
-    },
-    reqCodec.Writer,
-    respCodec.Parser,
-)
+package yourpackage
 
-// Send a request
-client.Send(requestStruct{Msg: "Hello"})
+func main() {
+	client, err := NewClient[requestStruct, responseStruct](
+		"localhost",
+		server.Port(),
+		nil,
+		func(resp responseStruct, status ClientStatus) error {
+			fmt.Printf("Received response: %v\n", resp)
+			return nil
+		},
+		reqCodec.Writer,
+		respCodec.Parser,
+	)
+
+	// Send a request
+	client.Send(requestStruct{Msg: "Hello"})
+}
+
 ```
 
 ## Performance Features
 
 - Efficient batching and fan-in/fan-out pattern implementation
-  - Flushes when batch size or time limit is reached, whichever comes first
-    - Basically a controllable Nagle-ish algorithm (chose your own time and size parameters!)
-  - Uses a combination of atomics, locks and channels.
-  - Regular channels are insufficient for high-throughput scenarios when message size is small,
-    and the custom system is about 10x faster on average.
-  - Fan-in is especially tricky, but is solved using an n-buffer solution (default=triple buffering),
-    inspired by game programming.
+    - Flushes when batch size or time limit is reached, whichever comes first
+        - Basically a controllable Nagle-ish algorithm (chose your own time and size parameters!)
+    - Uses a combination of atomics, locks and channels.
+    - Regular channels are insufficient for high-throughput scenarios when message size is small,
+      and the custom system is about 10x faster on average.
+    - Fan-in is especially tricky, but is solved using an n-buffer solution (default=triple buffering),
+      inspired by game programming.
 - Configurable for both latency and throughput use cases
-  - Configurable read/write buffer sizes
-  - Configurable flush window timing
+    - Configurable read/write buffer sizes
+    - Configurable flush window timing
 - Can be configured for close to zero allocations
 
 ## Preliminary Benchmarks
@@ -136,14 +168,17 @@ What does `request-responses` mean?
 Type used in the json tests:
 
 ```go
+package yourpackage
+
 type stupidJsonStruct struct {
-    Msg            string `json:"msg"`
-    Bla            int    `json:"bla"`
-    Foo            string `json:"foo"`
-    Bar            int    `json:"bar"`
-    GoRoutineIndex int    `json:"go_routine_index"`
-    IsFinalMessage bool   `json:"is_final_message"`
+	Msg            string `json:"msg"`
+	Bla            int    `json:"bla"`
+	Foo            string `json:"foo"`
+	Bar            int    `json:"bar"`
+	GoRoutineIndex int    `json:"go_routine_index"`
+	IsFinalMessage bool   `json:"is_final_message"`
 }
+
 ```
 
 ### Experimental features used in testing and benchmarking
@@ -156,11 +191,14 @@ type stupidJsonStruct struct {
 ### Batching Options
 
 ```go
-batchOpts := BatcherOpts{
-    WindowSize: 25 * time.Millisecond,
-    BatchSize: 1000,
-    QueueSize: 2000,
+package snail_batcher
+
+type BatcherOpts struct {
+	WindowSize time.Duration
+	BatchSize  int
+	QueueSize  int
 }
+
 ```
 
 ## Performance Tips
