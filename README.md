@@ -46,7 +46,7 @@ similar to the old Nagle algorithm - but our can be configured to match the need
 ### Lessons learned
 
 While building this library, many different implementations and designs were tried. It's still mostly just a prototype,
-but a few things have been learned:
+but a few of the things have been learned:
 
 * If you aim to create a system capable of achieving for example 100 million elements/messages per second on a global
   level (=through the chain of steps/components in entire system), which is roughly the level we aim for, each step in
