@@ -90,13 +90,15 @@ Measured on
 - WSL2 Ubuntu 22.04 on Windows 11
 
 Numbers:
-- Total bandwidth: 240-250 GBit/s (half client->server, half server->client)
-  - achieved using larger (10kB+) byte chunks as messages without much parsing
+- Reference max bandwidth on loopback: 240-250 GBit/s
+  - achieved sending larger (10kB+) byte chunks as messages without
+  - `hperf3` achieved only about 135 GBit/s, but I'm probably using it wrong
 - Request rate with small, individually processed, messages (4 Bytes/message): 300-350 million requests/s
 - Request rate with "regular", individually processed, messages (250 Bytes/message): 20-30 million requests/s 
   - (100-150 Gbit/s)
-- Request rate with json payload: 5 million requests/s
 - Request rate with http1.1 request/responses using `h2load` as load generator: 20-25 million requests/s 
+- Request rate with json payload: 5 million requests/s
+  - Almost all time spent in go std lib json marshalling/unmarshalling
 
 ### Experimental features used in testing and benchmarking
 
