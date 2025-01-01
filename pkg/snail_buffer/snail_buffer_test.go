@@ -455,4 +455,12 @@ func TestBuffer_EnsureSpareBytes(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		writeable[i] = byte(i)
 	}
+
+	// writing another byte should panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic, got nil")
+		}
+	}()
+	writeable[10] = 0x12
 }
