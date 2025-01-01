@@ -219,7 +219,7 @@ func Cmd() *cobra.Command {
 				})
 
 			} else if params.Duration.HasValue() {
-
+				exitWithError("Duration mode not implemented")
 			} else {
 				exitWithError("Invalid application mode. Neither duration or number of requests was set")
 			}
