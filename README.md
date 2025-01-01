@@ -83,8 +83,13 @@ client.Send(requestStruct{Msg: "Hello"})
 
 ## Preliminary Benchmarks
 
-Measured on 7950x3d with 64GB of 6000MT/s dual channel RAM over loopback tcp connections:
+Measured on 
+- 7950x3d CPU 
+- 64GB of 6000MT/s dual channel RAM
+- loopback tcp connections
+- WSL2 Ubuntu 22.04 on Windows 11
 
+Numbers:
 - Total bandwidth: 240-250 GBit/s (half client->server, half server->client)
   - achieved using larger (10kB+) byte chunks as messages without much parsing
 - Request rate with small, individually processed, messages (4 Bytes/message): 300-350 million requests/s
