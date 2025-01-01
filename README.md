@@ -3,6 +3,8 @@ Here's a what Anthropic claude 3.5 sonnet (and I) think about this project:
 # Snail 🐌
 
 A high-throughput networking library prototype focusing on TCP communication with request-response patterns.
+The goal (which is mostly achieved) is to be capable of sending and receiving request-responses at a rate of
+100 million request-responses per second on a single server.
 
 While this library and README is focused on TCP communication, the implementation is modular and its usefulness is not
 specific to TCP - I just chose it as the first use-case. The library is designed to be cherry-picked from for other
