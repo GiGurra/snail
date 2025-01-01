@@ -4,23 +4,45 @@ Here's a what Anthropic claude 3.5 sonnet thinks about this project:
 
 A high-throughput networking library focusing on TCP communication with request-response patterns.
 
-## Motivation
+While this library and README is focused on TCP communication, the implementation is modular and its usefulness is not
+specific to TCP - I just chose it as the first use-case. The library is designed to be cherry-picked from for other
+situations. For example, it would probably also be useful for creating fast solutions for storing logs to files,
+batching requests to other system devices, or other similar scenarios.
+
+## Initial Motivation
 
 Web servers, microservices and many system architectures are built on top of the request-response pattern.
-However, virtually all of them are also built on top of tcp, and the tcp stack implemented in modern operating
-systems is incredibly inefficient for this pattern. While request-response designs favor small messages and low, tcp
-communication is optimized for continuous streams of data and maximizing bandwidth/throughput and managing such traffic.
+However, virtually all of them are also built on top of tcp (which is also the assumed transport layer for most cloud
+based environments such as Kubernetes and its networking), and the tcp stack implemented in modern operating
+systems is incredibly inefficient for the request-response pattern. While request-response designs give the
+user/developer a sense of the operations being lightweight RPCs similar to regular function calls, tcp communication is
+optimized for continuous streams of data and maximizing bandwidth/throughput and managing such traffic. If you just
+write a simple naively implemented RPC over tcp, you would be lucky to achieve more than 10-20k requests/s per
+thread/goroutine.
+
+On the other hand, the request-response pattern is easy to reason about, easy to implement, easy to guarantee
+transactions and data/state consistency with across distributed systems. It also is the basis for a vast amount of
+existing standard tools and systems that would be difficult to live without - and sometimes/often it simply maps 1:1 to
+the real life problems. Asynchronous message passing without explicit dedicated responses (actors) suffers from the same
+fundamental problem with TCP-like transports. This project focuses on the request-response pattern, but the same
+efficiency gains presented here can be achieved in the distributed actor model as well.
 
 This library aims to make traditional request-response situations more efficient, without modifying the
 request-response programming interface used by developers, by serializing concurrent requests from high number of
-parallel operations into a single data stream - both client and server side. In other words, your programming interface
-should still look like this:
+parallel operations into a single data stream - both client and server side. The implementation is designed to be
+modular and to be cherry-picked from (does not 100% assume TCP or a request response pattern, but to make use of the
+full benefits of all components in this library, at least for now, TCP and request-response is assumed).
+
+In other words, your programming interface is expected to look something like this, and will stay like this after using
+`snail`:
 
 ```go
 func someOperation(data Data) SomeResult {
 // ...
 }
 ```
+
+## High level design/solution?
 
 How can this be addressed? Have you ever played a game such as Transport Tycoon? In that game you try to build a
 transportation company - optimizing transportation of goods and people for maximum profit. You build tracks, train
@@ -32,16 +54,20 @@ configuring our trains to wait for a certain amount of time or a certain amount 
 This is the main mechanism we are using in this library.
 
 So, when you for example create a http client with `snail`, and make a request through it, the request is not sent
-immediately. Instead, it is put in a queue. When the queue reaches a certain size, or a certain amount of time has
-passed (whichever comes first according to your configuration), the entire batch of requests is sent to the server.
+immediately - but you still just see a regular function call and response, like with any http library. Under the hood
+though `snail` puts your request in a queue/batch. When the batch reaches a certain size, or a certain amount of time
+has passed (whichever comes first according to your configuration), the entire batch of requests is sent to the server.
 Similarly, on the server side, different requests can be processed in parallel, and finish at different times. When a
-response is ready, it is not sent immediately. Instead, it is put in a queue on the server dedicated to the client that
-sent the request. In the exact same way as on the client side, when the queue reaches a certain size, or a certain
-amount of time has passed (whichever comes first according to your configuration), a batch of responses is sent
-to the client.
+response is ready, it is not sent immediately. Instead, it is put in a suitable batch on the server dedicated to the
+client that sent the request. Different responses may join different response batches - the order of operations can be
+random and `snail` won't force you to respond in the same order the operations were requested in (although you can - if
+you want to). In the exact same way as on the client side, when the batch reaches a certain size, or a certain
+amount of time has passed (whichever comes first according to your configuration) - or some other criteria you create
+has been met (e.g. you explicitly call `SnailBatcher.Flush()`), a batch of responses is sent to the client.
 
 It's up to you to choose the batch size and the time limit for the batch to be sent, according to your needs. This is
-similar to the old Nagle algorithm - but our can be configured to match the needs of the application.
+similar to the old Nagle algorithm - but you can configure and extend it to match the needs of the application and
+larger system architecture.
 
 ### Lessons learned
 
@@ -51,6 +77,17 @@ but a few of the things have been learned:
 * If you aim to create a system capable of achieving for example 100 million elements/messages per second on a global
   level (=through the chain of steps/components in entire system including TCP transmissions), which is roughly the
   level we aim for, each step in the chain must be significantly faster than this.
+* Implementing batching/the train station concept for request-responses is basically a challenge of:
+    * Batching
+        * How to pick the right batch size, how to store batches and manage memory allocation, and how to auto time
+          batches.
+    * Fan-in
+        * How to efficiently coordinate the input from multiple goroutines and have them take their seats in a single
+          batch/train.
+    * Fan-out
+        * How to handle the return trip of trans, and how the different responses are most efficiently delivered back to
+          the original goroutines/sources of the requests. This can be in totally different order than the requests were
+          made.
 * Channels are surprisingly slow for high-throughput scenarios
     * You can expect single digit millions of elements per second on a highly contended fan-in channel, while reaching
       maybe 30-40 million elements per second on a non-contended channel.
