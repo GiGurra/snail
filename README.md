@@ -290,7 +290,7 @@ Numbers:
     - We parse very minimal parts of the incoming http request for testing purposes
     - http 1.1 pipelining is enabled
         - a comparable result should be achievable with http2 multiplexing
-    - We should investigate `h2load` to se if it is the bottleneck
+    - We should investigate `h2load` to see if it is the bottleneck
     - This equates to about 30 Gbit/s throughput (according to `h2load`)
         - half of which is the data sent to the server
         - half of which is the data sent back to the client
