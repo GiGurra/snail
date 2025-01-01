@@ -65,8 +65,8 @@ immediately. This is the same concept we are using here. We are building train s
 configuring our trains to wait for a certain amount of time or a certain amount of data before they leave the station.
 This is the main mechanism we are using in this library.
 
-So, when you for example create a http client with `snail`, and make a request through it, the request is not sent
-immediately - but you still just see a regular function call and response, like with any http library. Under the hood
+So, when you for example create a client with `snail`, and make a request through it, the request is not sent
+immediately - but you still just see a regular function call and response, like with any request library. Under the hood
 though, `snail` puts your request in a queue/batch. When the batch reaches a certain size, or a certain amount of time
 has passed (whichever comes first according to your configuration), the entire batch of requests is sent to the server.
 Similarly, on the server side, different requests can be processed in parallel, and finish at different times. When a
