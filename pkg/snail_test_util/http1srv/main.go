@@ -33,7 +33,7 @@ func main() {
 
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
-	writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
+	writeBuf := snail_buffer.New(snail_buffer.BigEndian, 64*1024)
 
 	dateStr := time.Now().Format(time.RFC1123)
 	defaultResponse := []byte(StripMargin(
