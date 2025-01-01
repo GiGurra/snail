@@ -66,15 +66,17 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 	return func(readBuf *snail_buffer.Buffer) error {
 
+		// Callback to indicate that the connection is closed
 		if readBuf == nil {
 			batcher.Close()
 			//slog.Warn("Connection closed")
 			return nil
 		}
 
-		state := getRequestState{}
-		bytes := readBuf.Underlying()
-		byteLen := len(bytes)
+		state := parserState{}        // keep track of what we are doing
+		bytes := readBuf.Underlying() // where we read from
+		byteLen := len(bytes)         // maybe perf incr? :D to avoid calling len() all the time
+
 		responsesToSend := 0
 		for i := readBuf.ReadPos(); i < byteLen; i++ {
 			b := bytes[i]
@@ -107,7 +109,7 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 						// End of headers
 						//fmt.Println("End of headers")
 						responsesToSend++
-						state = getRequestState{}
+						state = parserState{}
 						readBuf.SetReadPos(i + 1)
 					} else {
 						header := string(bytes[state.CurrentHeaderStart:i])
@@ -156,7 +158,7 @@ const (
 	ReadingHeaders
 )
 
-type getRequestState struct {
+type parserState struct {
 	Status Status
 
 	StartLineStart int
