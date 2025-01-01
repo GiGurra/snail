@@ -163,6 +163,7 @@ func Cmd() *cobra.Command {
 
 			// If in fixed number of requests mode, we need to calculate how many requests each client should send
 			if params.NumberOfRequests.HasValue() {
+				fmt.Println("* Starting load in fixed number of requests mode")
 				requestsPerClient := *params.NumberOfRequests.Value() / params.Connections.Value()
 				lop.ForEach(lo.Range(params.Connections.Value()), func(i int, _ int) {
 
