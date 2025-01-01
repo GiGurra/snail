@@ -1,4 +1,4 @@
-Here's a what Anthropic claude 3.5 sonnet thinks about this project:
+Here's a what Anthropic claude 3.5 sonnet (and I) think about this project:
 
 # Snail 🐌
 
