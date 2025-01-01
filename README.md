@@ -108,6 +108,8 @@ Numbers:
     - half of which is the data sent back to the client
 - Request rate with http1.1 using `h2load` as load generator: 20-25 million request-responses/s 
   - We parse very minimal parts of the incoming http request for testing purposes
+  - http 1.1 pipelining is enabled
+    - ignoring http2 bandwidth efficiency improvement, this should be achievable in http2
   - We should investigate `h2load` to se if it is the bottleneck
   - This equates to about 40 Gbit/s throughput (according to `h2load`)
     - half of which is the data sent to the server
