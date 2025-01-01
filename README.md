@@ -102,7 +102,9 @@ learned:
       all cores (tests on 7950X3D below) pushing to dedicated non-contended channels (NOT our case), you could perhaps
       hit 300-400 million elements per second. Again, that's if your application did absolutely nothing else and had no
       other purpose than moving elements around without and logic, without fan in, without fan out, without computations
-      or transmissions elsewhere :).
+      or transmissions elsewhere :). But we do a lot more, and have a lot of hand-over steps both on the client and
+      server side. A single hand over cannot consume all of our available CPU or kernel resources, or we will not be
+      able to achieve the desired global throughput.
     * For efficient fan-out and fan-in when aiming for throughput on the order of 100s of millions of elements per
       second for your system as a whole/globally, channels are just simply too slow, by 1-2 orders of magnitude.
 * The Go standard library mutex implementation performs wildly different on different platforms and in different
