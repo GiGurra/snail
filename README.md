@@ -26,11 +26,11 @@ go get github.com/GiGurra/snail
 ```go
 
 type requestStruct struct {
-Msg string
+    Msg string
 }
 
 type responseStruct struct {
-Msg string
+    Msg string
 }
 
 reqCodec := snail_parser.NewJsonLinesCodec[requestStruct]()
@@ -42,15 +42,15 @@ respCodec := snail_parser.NewJsonLinesCodec[responseStruct]()
 ```go
 
 server, err := NewServer[requestStruct, responseStruct](
-func () ServerConnHandler[requestStruct, responseStruct] {
-return func (req requestStruct, repFunc func (resp responseStruct) error) error {
-return repFunc(responseStruct{Msg: "Hello from server"})
-}
-},
-nil,
-reqCodec.Parser,
-respCodec.Writer,
-nil,
+    func () ServerConnHandler[requestStruct, responseStruct] {
+        return func (req requestStruct, repFunc func (resp responseStruct) error) error {
+            return repFunc(responseStruct{Msg: "Hello from server"})
+        }
+    },
+    nil,
+    reqCodec.Parser,
+    respCodec.Writer,
+    nil,
 )
 ```
 
@@ -58,15 +58,15 @@ nil,
 
 ```go
 client, err := NewClient[requestStruct, responseStruct](
-"localhost",
-server.Port(),
-nil,
-func (resp responseStruct, status ClientStatus) error {
-fmt.Printf("Received response: %v\n", resp)
-return nil
-},
-reqCodec.Writer,
-respCodec.Parser,
+    "localhost",
+    server.Port(),
+    nil,
+    func (resp responseStruct, status ClientStatus) error {
+        fmt.Printf("Received response: %v\n", resp)
+        return nil
+    },
+    reqCodec.Writer,
+    respCodec.Parser,
 )
 
 // Send a request
@@ -131,12 +131,12 @@ Type used in the json tests:
 
 ```go
 type stupidJsonStruct struct {
-Msg            string `json:"msg"`
-Bla            int    `json:"bla"`
-Foo            string `json:"foo"`
-Bar            int    `json:"bar"`
-GoRoutineIndex int    `json:"go_routine_index"`
-IsFinalMessage bool   `json:"is_final_message"`
+    Msg            string `json:"msg"`
+    Bla            int    `json:"bla"`
+    Foo            string `json:"foo"`
+    Bar            int    `json:"bar"`
+    GoRoutineIndex int    `json:"go_routine_index"`
+    IsFinalMessage bool   `json:"is_final_message"`
 }
 ```
 
@@ -151,9 +151,9 @@ IsFinalMessage bool   `json:"is_final_message"`
 
 ```go
 batchOpts := BatcherOpts{
-WindowSize: 25 * time.Millisecond,
-BatchSize: 1000,
-QueueSize: 2000,
+    WindowSize: 25 * time.Millisecond,
+    BatchSize: 1000,
+    QueueSize: 2000,
 }
 ```
 
