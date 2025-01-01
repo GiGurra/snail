@@ -281,9 +281,12 @@ Numbers:
     - http 1.1 pipelining is enabled
         - a comparable result should be achievable with http2 multiplexing
     - We should investigate `h2load` to se if it is the bottleneck
-    - This equates to about 40 Gbit/s throughput (according to `h2load`)
+    - This equates to about 30 Gbit/s throughput (according to `h2load`)
         - half of which is the data sent to the server
         - half of which is the data sent back to the client
+- Request rate with http1.1 using custom load testing tool (this repo/cmd/cmd_load/cmd_load_h1): 45 m/s
+    - So `h2load` was the limiting factor above :S. Our own custom tool cheats a LOT but produces valid http requests.
+    - Total traffic is about 60-65 Gbit/s (total of send+receive)
 - Request rate with json payload: 5 million request-responses/s
     - Almost all time spent in go std lib json marshalling/unmarshalling (>80%)
     - A considerable amount of time spent in memory allocation/malloc
