@@ -98,7 +98,7 @@ learned:
       maybe 30-40 million elements per second on a non-contended channel. Our situation is by design highly contended,
       and we aim for 100s of millions of elements per second - therefor a pure channel based fan-in is not an option (
       This was the design I tried at first and where I discovered the performance limitations of channels :) ).
-    * If your application did absolutely nothing else but shuffled elements of data between channels, fully utilizing
+    * If your application does absolutely nothing else but shuffle elements of data between channels, fully utilizing
       all cores (tests on 7950X3D below) pushing to dedicated non-contended channels (NOT our case), you could perhaps
       hit 300-400 million elements per second. Again, that's if your application did absolutely nothing else and had no
       other purpose than moving elements around without and logic, without fan in, without fan out, without computations
