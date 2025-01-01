@@ -122,7 +122,8 @@ learned:
   problem entirely on their own.
 * Memory allocation is grossly expensive in Go (and in non-moving/non-generational systems). At about 10-20 GB/s on my
   linux machine, you will be spending all of your time in memory allocation. So if you want to shuffle data at that
-  rate (which we want to, see below), you'll need to either avoid allocations entirely, or use a custom memory allocator/object pooling.
+  rate (which we want to, see below), you'll need to either avoid allocations entirely, or use a custom memory
+  allocator/object pooling.
 * Circular buffers are awesome. Double/triple buffers are awesome. Atomics are awesome :).
     * This is how `snail` achieves its throughput in batching.
 * Be prepared to experiment with custom mutex implementations.
