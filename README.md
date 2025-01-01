@@ -49,8 +49,8 @@ While building this library, many different implementations and designs were tri
 but a few of the things have been learned:
 
 * If you aim to create a system capable of achieving for example 100 million elements/messages per second on a global
-  level (=through the chain of steps/components in entire system), which is roughly the level we aim for, each step in
-  the chain must be significantly faster than this.
+  level (=through the chain of steps/components in entire system including TCP transmissions), which is roughly the
+  level we aim for, each step in the chain must be significantly faster than this.
 * Channels are surprisingly slow for high-throughput scenarios
     * You can expect single digit millions of elements per second on a highly contended fan-in channel, while reaching
       maybe 30-40 million elements per second on a non-contended channel.
