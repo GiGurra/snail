@@ -190,8 +190,8 @@ func main() {
 			}
 		},
 		nil,
-		reqCodec.Parser,
-		respCodec.Writer,
+		reqCodec.Parser, // just a function
+		respCodec.Writer, // just a function
 		nil,
 	)
 }
@@ -212,8 +212,8 @@ func main() {
 			fmt.Printf("Received response: %v\n", resp)
 			return nil
 		},
-		reqCodec.Writer,
-		respCodec.Parser,
+		reqCodec.Writer,  // just a function
+		respCodec.Parser, // just a function
 	)
 
 	// Send a request
