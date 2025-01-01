@@ -98,12 +98,12 @@ Numbers:
   - This equates to about 20 GBit/s throughput
     - half of which is the data sent to the server
     - half of which is the data sent back to the client
-- Request rate with 250 byte requests/responses: 20-30 million request-responses/s 
+- Request rate with 276 byte requests/responses: 25 million request-responses/s 
   - Each request and response is a custom struct with
     - 3 encoded/decoded integer fields (1 int32 + 2 int64)
     - 1 long byte array at the end
     - custom encoder/parser
-  - This equates to about 100-150 Gbit/s throughput
+  - This equates to about 110 Gbit/s throughput
     - half of which is the data sent to the server
     - half of which is the data sent back to the client
 - Request rate with http1.1 using `h2load` as load generator: 20-25 million request-responses/s 
