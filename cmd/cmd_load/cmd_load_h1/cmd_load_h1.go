@@ -123,6 +123,9 @@ func Cmd() *cobra.Command {
 				if err != nil {
 					exitWithError(fmt.Sprintf("Failed to create client: %v", err))
 				}
+
+				//goland:noinspection GoDeferInLoop // it's intended
+				defer clients[i].Close()
 			}
 
 			fmt.Println("* Creating batchers")
@@ -142,6 +145,8 @@ func Cmd() *cobra.Command {
 						return nil
 					},
 				)
+				//goland:noinspection GoDeferInLoop // it's intended
+				defer batchers[i].Close()
 			}
 
 			type Status int
