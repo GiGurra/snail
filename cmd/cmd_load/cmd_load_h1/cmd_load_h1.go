@@ -7,6 +7,8 @@ import (
 	"github.com/GiGurra/snail/pkg/snail_buffer"
 	"github.com/GiGurra/snail/pkg/snail_tcp"
 	"github.com/GiGurra/snail/pkg/snail_test_util/strutil"
+	"github.com/samber/lo"
+	lop "github.com/samber/lo/parallel"
 	"github.com/spf13/cobra"
 	"log/slog"
 	"net/url"
@@ -89,7 +91,7 @@ func Cmd() *cobra.Command {
 				exitWithError("Must specify either duration or number of requests")
 			}
 
-			fmt.Printf("Will load test %s using:\n", params.Url.Value())
+			fmt.Printf("* Will load test %s using:\n", params.Url.Value())
 			fmt.Printf("  %d connection(s)\n", params.Connections.Value())
 			fmt.Printf("  %d concurrent request(s) per connection\n", params.MaxConcurrentRequests.Value())
 			if params.Duration.HasValue() {
@@ -97,11 +99,6 @@ func Cmd() *cobra.Command {
 				fmt.Printf("  %s test duration\n", duration)
 			} else if params.NumberOfRequests.HasValue() {
 				fmt.Printf("  %d request(s) total spread across connections\n", *params.NumberOfRequests.Value())
-			}
-
-			respHandler := func(resp *snail_buffer.Buffer) error {
-				fmt.Printf("Received response: %s\n", resp.String())
-				return nil
 			}
 
 			parsedUrl, _ := url.Parse(params.Url.Value())
@@ -117,17 +114,20 @@ func Cmd() *cobra.Command {
 				return port
 			}()
 
-			slog.Info("Creating clients")
+			fmt.Println("* Creating clients")
 			clients := make([]*snail_tcp.SnailClient, params.Connections.Value())
+			respHandlers := make([]snail_tcp.ClientRespHandler, params.Connections.Value())
 			for i := 0; i < params.Connections.Value(); i++ {
 				var err error
-				clients[i], err = snail_tcp.NewClient(host, port, nil, respHandler)
+				clients[i], err = snail_tcp.NewClient(host, port, nil, func(buffer *snail_buffer.Buffer) error {
+					return respHandlers[i](buffer)
+				})
 				if err != nil {
 					exitWithError(fmt.Sprintf("Failed to create client: %v", err))
 				}
 			}
 
-			slog.Info("Creating batchers")
+			fmt.Println("* Creating batchers")
 			batchers := make([]*snail_batcher.SnailBatcher[byte], params.Connections.Value())
 			for i := 0; i < params.Connections.Value(); i++ {
 				client := clients[i]
@@ -144,6 +144,30 @@ func Cmd() *cobra.Command {
 						return nil
 					},
 				)
+			}
+
+			// If in fixed number of requests mode, we need to calculate how many requests each client should send
+			if params.NumberOfRequests.HasValue() {
+				requestsPerClient := *params.NumberOfRequests.Value() / params.Connections.Value()
+				lop.ForEach(lo.Range(params.Connections.Value()), func(i int, _ int) {
+
+					respHandlers[i] = func(buffer *snail_buffer.Buffer) error {
+						slog.Info("Received response")
+						return nil
+					}
+
+					batcher := batchers[i]
+					for j := 0; j < requestsPerClient; j++ {
+						batcher.AddMany(defaultRequestString)
+					}
+					batcher.Flush()
+				})
+
+				time.Sleep(1 * time.Second)
+			} else if params.Duration.HasValue() {
+
+			} else {
+				exitWithError("Invalid application mode. Neither duration or number of requests was set")
 			}
 		},
 	}.ToCmd()
