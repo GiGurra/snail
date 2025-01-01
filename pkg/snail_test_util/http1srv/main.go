@@ -33,7 +33,7 @@ func main() {
 
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
-	//writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
+	writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
 
 	dateStr := time.Now().Format(time.RFC1123)
 	defaultResponse := []byte(StripMargin(
@@ -46,60 +46,24 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 			 |`,
 	))
 
-	finalWriteBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
-	batcher := snail_batcher.NewSnailBatcher[[]byte](
-		1,
-		2,
+	batcher := snail_batcher.NewSnailBatcher[byte](
+		64*1024,
+		2*64*1024,
 		false,
-		5*time.Minute, // dont need with batch size 1
-		func(i [][]byte) error {
+		5*time.Millisecond, // dont need with batch size 1
+		func(bytes []byte) error {
 
-			if len(i) == 0 {
+			if len(bytes) == 0 {
 				return nil
 			}
 
-			if len(i) == 1 {
-				err := snail_tcp.SendAll(conn, i[0])
-				if err != nil {
-					return fmt.Errorf("failed to send response: %w", err)
-				}
-				return nil
-			}
-
-			slog.Warn("Batch size > 1")
-
-			finalWriteBuf.Reset()
-			for _, b := range i {
-				finalWriteBuf.WriteBytes(b)
-			}
-			err := snail_tcp.SendAll(conn, finalWriteBuf.Underlying())
+			err := snail_tcp.SendAll(conn, bytes)
 			if err != nil {
 				return fmt.Errorf("failed to send response: %w", err)
 			}
 			return nil
 		},
 	)
-
-	makeWriteBufs := func(n int) []*snail_buffer.Buffer {
-		res := make([]*snail_buffer.Buffer, n)
-		for i := 0; i < n; i++ {
-			res[i] = snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
-		}
-		return res
-	}
-
-	writeBufs := makeWriteBufs(4)
-
-	nextWriteBuf := 0
-
-	getNextWriteBuf := func() *snail_buffer.Buffer {
-		res := writeBufs[nextWriteBuf]
-		nextWriteBuf++
-		if nextWriteBuf == len(writeBufs) {
-			nextWriteBuf = 0
-		}
-		return res
-	}
 
 	return func(readBuf *snail_buffer.Buffer) error {
 
@@ -173,19 +137,28 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 		//fmt.Printf("Responses to send: %d\n", responsesToSend)
 
-		writeBuf := getNextWriteBuf()
+		/////////////////////////////////////////////////////////////////////
+		// BATCHER Implementation
+		// The batcher is kind of pointless here, as the incoming data by h2load is already so batched
+		// and pipelined, that we are already by default sending in the optimal batch size to the socket api.
+		// for i := 0; i < responsesToSend; i++ {
+		//	 batcher.AddMany(defaultResponse)
+		// }
+		/////////////////////////////////////////////////////////////////////
+
+		/////////////////////////////////////////////////////////////////////
+		// NAIVE Implementation
 		writeBuf.Reset()
 		for i := 0; i < responsesToSend; i++ {
 			writeBuf.WriteBytes(defaultResponse)
 		}
-		//
-		//The batcher is kind of pointless here, as the incoming data by h2load is already so batched
-		//and pipelined, that we are already by default sending in the optimal batch size to the socket api.
-		//batcher.Add(writeBuf.Underlying())
+
 		err := snail_tcp.SendAll(conn, writeBuf.Underlying())
 		if err != nil {
 			return fmt.Errorf("failed to send response: %w", err)
 		}
+		/////////////////////////////////////////////////////////////////////
+
 		return nil
 	}
 }

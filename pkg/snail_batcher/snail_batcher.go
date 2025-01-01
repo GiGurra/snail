@@ -144,7 +144,7 @@ func (sb *SnailBatcher[T]) unlockMutex() {
 	}
 }
 
-func (sb *SnailBatcher[byte]) AddMany(newItems []byte) {
+func (sb *SnailBatcher[T]) AddMany(newItems []T) {
 	sb.lockMutex()
 	defer sb.unlockMutex()
 
