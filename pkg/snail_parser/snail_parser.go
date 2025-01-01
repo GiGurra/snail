@@ -55,16 +55,3 @@ func ParseAll[T any](
 		}
 	}
 }
-
-func WriteAll[T any](
-	buffer *snail_buffer.Buffer,
-	writeFunc WriteFunc[T],
-	items []T,
-) error {
-	for _, item := range items {
-		if err := writeFunc(buffer, item); err != nil {
-			return fmt.Errorf("failed to write: %w", err)
-		}
-	}
-	return nil
-}

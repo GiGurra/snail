@@ -131,7 +131,7 @@ func TestParseAll_Int32StreamedByteForByte(t *testing.T) {
 
 func TestWriteAll(t *testing.T) {
 	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
-	err := WriteAll(buffer, IntWriter, []int{42, 43})
+	err := writeAll(buffer, IntWriter, []int{42, 43})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -225,7 +225,7 @@ func testStructWriter(buffer *snail_buffer.Buffer, ts testStruct) error {
 
 func TestWriteAll_WriteReadStructs(t *testing.T) {
 	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
-	err := WriteAll(buffer, testStructWriter, []testStruct{
+	err := writeAll(buffer, testStructWriter, []testStruct{
 		{Type: 42, Strlen: 4, Text: "test"},
 		{Type: 43, Strlen: 5, Text: "test2"},
 	})
@@ -275,7 +275,7 @@ func TestWriteAll_WriteReadJson(t *testing.T) {
 	codec := NewJsonLinesCodec[jsonTestStruct]()
 
 	buffer := snail_buffer.New(snail_buffer.BigEndian, 1024)
-	err := WriteAll(buffer, codec.Writer, []jsonTestStruct{
+	err := writeAll(buffer, codec.Writer, []jsonTestStruct{
 		{Type: 42, Text: "test", Bla: "bla", Foo: "foo", Bar: "bar"},
 		{Type: 43, Text: "test2", Bla: "bla2", Foo: "foo2", Bar: "bar2"},
 	})
@@ -1027,4 +1027,17 @@ func TestReadWriteInt16(t *testing.T) {
 
 	}
 
+}
+
+func writeAll[T any](
+	buffer *snail_buffer.Buffer,
+	writeFunc WriteFunc[T],
+	items []T,
+) error {
+	for _, item := range items {
+		if err := writeFunc(buffer, item); err != nil {
+			return fmt.Errorf("failed to write: %w", err)
+		}
+	}
+	return nil
 }
