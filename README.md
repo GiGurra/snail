@@ -49,7 +49,10 @@ I want to be able to program against a request-response interface, with normally
 still achieving throughput/bandwidth in GBit/s in the same order of magnitude of loopback network interface as I would
 if using pure network performance tools such as `iperf3` (Which btw, achieved around 130 GBit/s on my linux machine).
 That is the goal of this library - whether we've reached it or not I'll leave up to you to decide. This is basically
-orders of magnitude faster than regular request-response patterns over TCP, so it's probably a bit ambitious :).
+orders of magnitude faster than regular request-response patterns over TCP, so it's probably a bit ambitious.
+
+But if we could send requests and responses at a rate that basically maxed out our available physical network bandwidth,
+wouldn't that be neat :).
 
 ## High level design/solution?
 
