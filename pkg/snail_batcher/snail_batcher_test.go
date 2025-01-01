@@ -79,7 +79,7 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
 }
 
-func TestAddMany(t *testing.T) {
+func TestAddManyCorrectness(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
@@ -150,6 +150,87 @@ func TestAddMany(t *testing.T) {
 	if !slices.Equal(itemsToAdd, receivedItems) {
 		t.Fatalf("unexpected items received")
 	}
+
+	slog.Info("all results received")
+
+}
+
+func TestAddManyPerformance(t *testing.T) {
+
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	nItems := 100_000_000
+	batchSize := 1000
+	useRandomization := false
+
+	// ensure nItems is a multiple of batchSize
+	if //goland:noinspection GoBoolExpressions
+	nItems%batchSize != 0 {
+		t.Fatalf("nItems must be a multiple of batchSize")
+	}
+
+	itemsToAdd := make([]int, nItems)
+	for i := 0; i < nItems; i++ {
+		itemsToAdd[i] = i
+	}
+	//receivedItems := make([]int, 0, nItems)
+	doneSignal := make(chan struct{})
+	receivedCount := 0
+
+	batcher := NewSnailBatcher[int](
+		batchSize,
+		batchSize*2,
+		true,
+		1*time.Minute, // dont want the tickers interfering
+		func(values []int) error {
+			receivedCount += len(values)
+			if receivedCount == nItems {
+				close(doneSignal)
+			}
+			//receivedItems = append(receivedItems, values...)
+			//if len(receivedItems) == nItems {
+			//	close(doneSignal)
+			//}
+			return nil
+		},
+	)
+
+	// Add in some semi random fashion
+	if //goland:noinspection GoBoolExpressions
+	useRandomization {
+		for itemsAdded := 0; itemsAdded < nItems; {
+			maxThisStep := min(3*batchSize, nItems-itemsAdded)
+			nToAddThisStep := rand.Intn(maxThisStep + 1)
+			if rand.Float64() < 0.5 { // bulk
+				batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
+				itemsAdded += nToAddThisStep
+			} else { // add one at a time
+				for i := 0; i < nToAddThisStep; i++ {
+					batcher.Add(itemsToAdd[itemsAdded])
+					itemsAdded++
+				}
+			}
+		}
+	} else {
+		for itemsAdded := 0; itemsAdded < nItems; {
+			nToAddThisStep := min(2*batchSize/3, nItems-itemsAdded)
+			batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
+			itemsAdded += nToAddThisStep
+		}
+	}
+
+	slog.Info("waiting for results")
+
+	// wait for the done signal
+	<-doneSignal
+
+	//if len(receivedItems) != nItems {
+	//	t.Fatalf("unexpected total received %d", len(receivedItems))
+	//}
+	//
+	//if !slices.Equal(itemsToAdd, receivedItems) {
+	//	t.Fatalf("unexpected items received")
+	//}
 
 	slog.Info("all results received")
 

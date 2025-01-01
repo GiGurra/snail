@@ -148,22 +148,24 @@ func (sb *SnailBatcher[byte]) AddMany(newItems []byte) {
 	sb.lockMutex()
 	defer sb.unlockMutex()
 
-	for itemsAdded, itemsLeftToAdd := 0, len(newItems); itemsLeftToAdd > 0; {
+	for len(newItems) != 0 {
 
 		if sb.currentBackBuffer == nil {
 			sb.currentBackBuffer = <-sb.pullChan
 		}
 
-		spaceLeftInCurrentBackBuffer := sb.batchSize - len(sb.currentBackBuffer)
-		itemsToAddThisBatch := min(spaceLeftInCurrentBackBuffer, itemsLeftToAdd)
-		sb.currentBackBuffer = append(sb.currentBackBuffer, newItems[itemsAdded:itemsAdded+itemsToAddThisBatch]...)
+		availableForWriteInTrg := sb.batchSize - len(sb.currentBackBuffer)
+		chunk := newItems
+		if len(chunk) > availableForWriteInTrg {
+			chunk = chunk[:availableForWriteInTrg]
+		}
 
+		sb.currentBackBuffer = append(sb.currentBackBuffer, chunk...)
 		if len(sb.currentBackBuffer) >= sb.batchSize {
 			sb.flushUnsafe()
 		}
 
-		itemsAdded += itemsToAddThisBatch
-		itemsLeftToAdd -= itemsToAddThisBatch
+		newItems = newItems[len(chunk):]
 	}
 }
 
