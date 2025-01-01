@@ -5,6 +5,7 @@ import (
 	"github.com/GiGurra/boa/pkg/boa"
 	"github.com/spf13/cobra"
 	"log/slog"
+	"net/url"
 	"os"
 )
 
@@ -16,8 +17,44 @@ type Params struct {
 	NumberOfRequests      boa.Optional[int]    `help:"Number of requests to run"`
 }
 
+func (p Params) WithValidation() Params {
+	p.Connections.CustomValidator = func(i int) error {
+		if i <= 0 {
+			return fmt.Errorf("connections must be greater than 0")
+		}
+		return nil
+	}
+	p.MaxConcurrentRequests.CustomValidator = func(i int) error {
+		if i <= 0 {
+			return fmt.Errorf("max concurrent requests must be greater than 0")
+		}
+		return nil
+	}
+	p.Url.CustomValidator = func(s string) error {
+		// try parse as url
+		_, err := url.Parse(s)
+		if err != nil {
+			return fmt.Errorf("url is not valid: %v", err)
+		}
+		return nil
+	}
+	p.Duration.CustomValidator = func(i int) error {
+		if p.Duration.HasValue() && i <= 0 {
+			return fmt.Errorf("duration must be greater than 0")
+		}
+		return nil
+	}
+	p.NumberOfRequests.CustomValidator = func(i int) error {
+		if p.NumberOfRequests.HasValue() && i <= 0 {
+			return fmt.Errorf("number of requests must be greater than 0")
+		}
+		return nil
+	}
+	return p
+}
+
 func Cmd() *cobra.Command {
-	params := Params{}
+	params := Params{}.WithValidation()
 	return boa.Wrap{
 		Use:    "h1",
 		Short:  "run http1.1 load testing",
