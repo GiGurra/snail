@@ -8,7 +8,11 @@ import (
 type ParseOneStatus int
 
 const (
-	ParseOneStatusOK  ParseOneStatus = iota
+	// ParseOneStatusOK means that all data was parsed
+	ParseOneStatusOK ParseOneStatus = iota
+	// ParseOneStatusNEB means that not enough data was available to parse all the data.
+	// This is normal in streamed data environments. However, some of the data may have been was parsed,
+	// and the rest will be available in the next call
 	ParseOneStatusNEB ParseOneStatus = iota
 )
 
