@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_test_util"
-	"github.com/google/go-cmp/cmp"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"log/slog"
+	"math/rand"
 	"slices"
 	"testing"
 	"time"
@@ -83,8 +83,8 @@ func TestAddMany(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
-	nItems := 100
-	batchSize := 10 // 10 000 seems to be the sweet spot
+	nItems := 100_000
+	batchSize := 100 // 10 000 seems to be the sweet spot
 
 	// ensure nItems is a multiple of batchSize
 	if //goland:noinspection GoBoolExpressions
@@ -105,16 +105,25 @@ func TestAddMany(t *testing.T) {
 		true,
 		1*time.Minute, // dont want the tickers interfering
 		func(values []int) error {
-			slog.Info(fmt.Sprintf("Received %d items", len(values)))
 			resultsChannel <- slices.Clone(values)
 			return nil
 		},
 	)
 
-	for _, item := range itemsToAdd[0 : 3*batchSize/2] {
-		batcher.Add(item)
+	// Add in some semi random fashion
+	for itemsAdded := 0; itemsAdded < nItems; {
+		maxThisStep := min(3*batchSize, nItems-itemsAdded)
+		nToAddThisStep := rand.Intn(maxThisStep + 1)
+		if rand.Float64() < 0.5 { // bulk
+			batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
+			itemsAdded += nToAddThisStep
+		} else { // add one at a time
+			for i := 0; i < nToAddThisStep; i++ {
+				batcher.Add(itemsToAdd[itemsAdded])
+				itemsAdded++
+			}
+		}
 	}
-	batcher.AddMany(itemsToAdd[3*batchSize/2:])
 
 	slog.Info("waiting for results")
 
@@ -138,8 +147,8 @@ func TestAddMany(t *testing.T) {
 		t.Fatalf("unexpected total received %d", len(receivedItems))
 	}
 
-	if diff := cmp.Diff(itemsToAdd, receivedItems); diff != "" {
-		t.Fatalf("unexpected items received: %s", diff)
+	if !slices.Equal(itemsToAdd, receivedItems) {
+		t.Fatalf("unexpected items received")
 	}
 
 	slog.Info("all results received")
