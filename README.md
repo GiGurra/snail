@@ -190,7 +190,7 @@ func main() {
 			}
 		},
 		nil,
-		reqCodec.Parser, // just a function
+		reqCodec.Parser,  // just a function
 		respCodec.Writer, // just a function
 		nil,
 	)
