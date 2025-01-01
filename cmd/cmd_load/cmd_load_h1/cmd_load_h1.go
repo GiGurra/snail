@@ -188,7 +188,7 @@ func Cmd() *cobra.Command {
 								if b == 'H' {
 									// found the start!
 									state.Status = LookingForEnd
-									i += 100 // skip some silly amount of bytes, cheat a bit
+									i += 100 // skip some silly amount of bytes, cheat a bit. 100 works for snail server. 85 for fasthttp server
 								}
 							case LookingForEnd:
 								if b == '\n' {
