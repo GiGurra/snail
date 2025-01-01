@@ -79,9 +79,10 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 		responsesToSend := 0
 		for i := readBuf.ReadPos(); i < byteLen; i++ {
+
 			b := bytes[i]
-			if b == '\r' {
-				// ignore
+
+			if b == '\r' { // ignore
 				continue
 			}
 
