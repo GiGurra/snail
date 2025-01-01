@@ -111,7 +111,10 @@ func TestAddMany(t *testing.T) {
 		},
 	)
 
-	batcher.AddMany(itemsToAdd)
+	for _, item := range itemsToAdd[0 : 3*batchSize/2] {
+		batcher.Add(item)
+	}
+	batcher.AddMany(itemsToAdd[3*batchSize/2:])
 
 	slog.Info("waiting for results")
 
