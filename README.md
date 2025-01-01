@@ -130,7 +130,7 @@ learned:
 * Be prepared to write custom memory allocators.
 * Be prepared to write custom data serializers/deserializers
 * Be prepared to write custom data structures.
-* Be prepared to write custom queueing, buffering and batching mechanisms. 
+* Be prepared to write custom queueing, buffering and batching mechanisms.
 * Be prepared to spend a lot of time in the profiler. The profiler is your friend.
 
 ## Features
@@ -138,7 +138,10 @@ learned:
 - High-performance TCP client/server implementation
 - Request-response pattern support
 - Efficient batching mechanism
-- Support for different encoding formats (JSON, custom binary protocols)
+- Support for pluggable encoding formats (JSON, custom binary protocols)
+    - You just plug in a parser and a writer for your custom data type. `snail` servers and clients are type
+      parameterized with the `Request` and `Response` types for this purpose, and for the purpose of providing an easy
+      to use and type safe programming interface.
 - Buffer management with memory pooling options
 - Configurable optimization for latency or throughput
 
