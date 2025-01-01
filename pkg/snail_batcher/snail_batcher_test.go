@@ -198,7 +198,7 @@ func TestAddManyPerformance(t *testing.T) {
 		t0 := time.Now()
 
 		for itemsAdded := 0; itemsAdded < nItems; {
-			nToAddThisStep := min(2*batchSize/3, nItems-itemsAdded)
+			nToAddThisStep := max(1, min(2*batchSize/3, nItems-itemsAdded))
 			batcher.AddMany(itemsToAdd[itemsAdded : itemsAdded+nToAddThisStep])
 			itemsAdded += nToAddThisStep
 		}
