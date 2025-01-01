@@ -116,8 +116,8 @@ learned:
   operations/second on my computer (see specs below) - faster than MacOS up to around 10-20 concurrent goroutines, after
   which the MacOS implementation takes the lead (the goland profiler suggests the macos implementation gets stuck in
   usleep operations too long, and you need to have more goroutines to counter this effect).
-    * Either way, just having a mutex is not fast enough on either system. it is faster than channels by 2-5x, but this
-      is not enough for our purposes.
+    * Either way, just having a mutex is not fast enough on either system. it is faster than channels by 5x in high
+      contention scenarios, but this alone is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
   problem.
 * Memory allocation is grossly expensive in Go (and in non-moving/non-generational systems). At about 10-20 GB/s, you
