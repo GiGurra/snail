@@ -18,24 +18,17 @@ import (
 )
 
 type Params struct {
-	Connections           boa.Required[int]    `descr:"Number of connections to use"`
-	MaxConcurrentRequests boa.Required[int]    `descr:"Number of concurrent requests to use per connection"`
-	Url                   boa.Required[string] `descr:"Url to use" positional:"true"`
-	BatchSizeBytes        boa.Required[int]    `descr:"Batch size in bytes for tcp writes" default:"65536"`
-	Duration              boa.Optional[string] `descr:"Duration to run the test for"`
-	NumberOfRequests      boa.Optional[int]    `descr:"Number of requests to run"`
+	Connections      boa.Required[int]    `descr:"Number of connections to use"`
+	Url              boa.Required[string] `descr:"Url to use" positional:"true"`
+	BatchSizeBytes   boa.Required[int]    `descr:"Batch size in bytes for tcp writes" default:"65536"`
+	Duration         boa.Optional[string] `descr:"Duration to run the test for"`
+	NumberOfRequests boa.Optional[int]    `descr:"Number of requests to run"`
 }
 
 func (p *Params) WithValidation() *Params {
 	p.Connections.CustomValidator = func(i int) error {
 		if i <= 0 {
 			return fmt.Errorf("connections must be greater than 0")
-		}
-		return nil
-	}
-	p.MaxConcurrentRequests.CustomValidator = func(i int) error {
-		if i <= 0 {
-			return fmt.Errorf("max concurrent requests must be greater than 0")
 		}
 		return nil
 	}
@@ -93,12 +86,17 @@ func Cmd() *cobra.Command {
 
 			fmt.Printf("* Will load test %s using:\n", params.Url.Value())
 			fmt.Printf("  %d connection(s)\n", params.Connections.Value())
-			fmt.Printf("  %d concurrent request(s) per connection\n", params.MaxConcurrentRequests.Value())
+			fmt.Printf("  %d batch size (bytes)\n", params.BatchSizeBytes.Value())
 			if params.Duration.HasValue() {
 				duration, _ := time.ParseDuration(*params.Duration.Value())
 				fmt.Printf("  %s test duration\n", duration)
 			} else if params.NumberOfRequests.HasValue() {
 				fmt.Printf("  %d request(s) total spread across connections\n", *params.NumberOfRequests.Value())
+
+				// Number of requests must be divisible by number of connections
+				if *params.NumberOfRequests.Value()%params.Connections.Value() != 0 {
+					exitWithError("Number of requests must be divisible by number of connections")
+				}
 			}
 
 			parsedUrl, _ := url.Parse(params.Url.Value())
@@ -146,13 +144,64 @@ func Cmd() *cobra.Command {
 				)
 			}
 
+			type Status int
+			const (
+				LookingForStart Status = iota
+				LookingForEnd
+			)
+			type receiveState struct {
+				Status        Status
+				StartAt       int
+				EndAt         int
+				ConsecutiveLF int
+			}
+
 			// If in fixed number of requests mode, we need to calculate how many requests each client should send
 			if params.NumberOfRequests.HasValue() {
 				requestsPerClient := *params.NumberOfRequests.Value() / params.Connections.Value()
 				lop.ForEach(lo.Range(params.Connections.Value()), func(i int, _ int) {
 
+					responsesReceived := 0
+					doneChan := make(chan struct{})
+
 					respHandlers[i] = func(buffer *snail_buffer.Buffer) error {
-						slog.Info("Received response")
+						bytes := buffer.Underlying()
+						start := buffer.ReadPos()
+						ln := len(bytes)
+
+						state := receiveState{}
+
+						for i := start; i < ln; i++ {
+							b := bytes[i]
+							if b == '\r' {
+								continue // ignore
+							}
+							switch state.Status {
+							case LookingForStart:
+								if b == 'H' {
+									// found the start!
+									state.StartAt = i
+									state.Status = LookingForEnd
+								}
+							case LookingForEnd:
+								if b == '\n' {
+									state.ConsecutiveLF++
+									if state.ConsecutiveLF == 2 {
+										responsesReceived++
+										buffer.SetReadPos(i + 1)
+										state = receiveState{}
+									}
+								} else {
+									state.ConsecutiveLF = 0
+								}
+							}
+						}
+						buffer.DiscardReadBytes()
+
+						if responsesReceived == requestsPerClient {
+							close(doneChan)
+						}
+
 						return nil
 					}
 
@@ -161,9 +210,10 @@ func Cmd() *cobra.Command {
 						batcher.AddMany(defaultRequestString)
 					}
 					batcher.Flush()
+
+					<-doneChan
 				})
 
-				time.Sleep(1 * time.Second)
 			} else if params.Duration.HasValue() {
 
 			} else {
