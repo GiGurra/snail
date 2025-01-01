@@ -83,8 +83,8 @@ func TestAddMany(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
-	nItems := 100_000
-	batchSize := 100 // 10 000 seems to be the sweet spot
+	nItems := 10_000_000
+	batchSize := 100
 
 	// ensure nItems is a multiple of batchSize
 	if //goland:noinspection GoBoolExpressions
