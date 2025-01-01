@@ -30,6 +30,7 @@ func (b *Buffer) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
+	// if p doesn't fit in the buffer, copy what we can and return
 	if len(p) < numToRead {
 		if len(p) == 0 {
 			return 0, fmt.Errorf("can't read into a zero-length buffer")
@@ -37,7 +38,6 @@ func (b *Buffer) Read(p []byte) (n int, err error) {
 		numToRead = len(p)
 	}
 
-	// if p doesn't fit in the buffer, copy what we can and return
 	copy(p, b.buf[b.readPos:b.readPos+numToRead])
 	b.readPos += numToRead
 	return numToRead, nil
