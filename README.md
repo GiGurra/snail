@@ -95,7 +95,7 @@ Numbers:
   - `hperf3` achieved only about 135 GBit/s, but I'm probably using it wrong
 - Request rate with 4 byte requests/responses: 300-350 million request-responses/s
   - Each request and response is just a single int32
-  - This equates to about 20 GBit/s throughput (client->server + server->client)
+  - This equates to about 20 GBit/s throughput (sum of client->server + server->client)
 - Request rate with 250 byte requests/responses: 20-30 million request-responses/s 
   - Each request and response is a custom struct with
     - 3 encoded/decoded integer fields
