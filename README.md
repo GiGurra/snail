@@ -77,25 +77,7 @@ client.Send(requestStruct{Msg: "Hello"})
 - Memory pooling for reduced GC pressure
 - Support for custom allocators
 
-## Main Components
-
-- `snail_tcp`: Low-level TCP networking
-- `snail_tcp_reqrep`: Request-response pattern implementation
-- `snail_batcher`: Efficient batching system
-- `snail_buffer`: Buffer management
-- `snail_parser`: Encoding/decoding framework
-
 ## Configuration
-
-### TCP Options
-
-```go
-opts := &snail_tcp.SnailServerOpts{
-    Optimization: OptimizeForThroughput,  // or OptimizeForLatency
-    ReadBufSize: 64 * 1024,
-    TcpReadWindowSize: 1024 * 1024,
-}
-```
 
 ### Batching Options
 
@@ -111,8 +93,8 @@ batchOpts := BatcherOpts{
 
 1. Use batching for high-throughput scenarios
 2. Configure appropriate buffer sizes
-3. Consider using custom memory allocators for reduced GC pressure
-4. Choose the right optimization mode (latency vs throughput)
+3. Choose the right optimization mode (latency vs throughput)
+4. Consider using custom memory allocators for reduced GC pressure if needed
 
 ## License
 
