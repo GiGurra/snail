@@ -21,11 +21,9 @@ func main() {
 		panic(fmt.Errorf("failed to create server: %w", err))
 	}
 
-	// Start the server
 	slog.Info(fmt.Sprintf("Started server on port %d", srv.Port()))
 
-	// Sleep forever
-	select {}
+	select {} // Sleep forever
 }
 
 func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
