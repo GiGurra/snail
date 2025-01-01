@@ -119,7 +119,7 @@ learned:
     * Either way, just having a mutex is not fast enough on either system. it is faster than channels by 5x in high
       contention scenarios, but this alone is not enough for our purposes.
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
-  problem.
+  problem entirely on their own.
 * Memory allocation is grossly expensive in Go (and in non-moving/non-generational systems). At about 10-20 GB/s, you
   will be spending all of your time in memory allocation. So if you want to shuffle data at that rate (which we want to,
   see below), you'll need to either avoid allocations entirely, or use a custom memory allocator/object pooling.
