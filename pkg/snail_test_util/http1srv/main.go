@@ -73,7 +73,6 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 			return nil
 		}
 
-		// Loop over lines
 		state := getRequestState{}
 		bytes := readBuf.Underlying()
 		responsesToSend := 0
