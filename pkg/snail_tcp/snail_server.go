@@ -21,7 +21,7 @@ type SnailServer struct {
 type SnailServerOpts struct {
 	//MaxConnections int // TODO: implement support for this
 	Optimization      OptimizationType
-	ReadBufSize       int
+	ReadBufSize       int // this=initial size. TODO: implement max-grow-size
 	Port              int
 	TcpReadWindowSize int
 }
