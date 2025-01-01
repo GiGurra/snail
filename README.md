@@ -358,7 +358,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Readme  Authors
 
-- Anthropic Claude 3.5
+- Anthropic Claude 3.5 sonnet
+- GiGurra
 
 ## Code Authors
 
