@@ -93,14 +93,25 @@ Numbers:
 - Reference max bandwidth achieved on loopback: 240-250 GBit/s
   - achieved sending larger (10kB+) byte chunks as messages without
   - `hperf3` achieved only about 135 GBit/s, but I'm probably using it wrong
-- Request rate with small requests/responses (4 Bytes): 300-350 million request-responses/s
-- Request rate with "regular" requests/responses (250 Bytes): 20-30 million request-responses/s 
-  - (100-150 Gbit/s)
+- Request rate with 4 byte requests/responses: 300-350 million request-responses/s
+  - Each request and response is just a single int32
+- Request rate with 250 byte requests/responses: 20-30 million request-responses/s 
+  - Each request and response is a custom struct with
+    - 3 encoded/decoded integer fields
+    - 1 long byte array at the end
+    - custom encoder/parser
+  - This equates to about 100-150 Gbit/s
+    - half of which is the data sent to the server
+    - half of which is the data sent back to the client
 - Request rate with http1.1 using `h2load` as load generator: 20-25 million request-responses/s 
+  - We parse very minimal parts of the incoming http request for testing purposes
+  - We should probably assume `h2load` needs to be investigated to se if it is the bottleneck
 - Request rate with json payload: 5 million request-responses/s
   - Almost all time spent in go std lib json marshalling/unmarshalling
 
-
+What does `request-responses` mean?
+- A request is exactly one go function call with the request type as argument
+- A response is exactly one go function callback with the response type as argument
 
 ### Experimental features used in testing and benchmarking
 
