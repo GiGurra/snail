@@ -86,6 +86,7 @@ client.Send(requestStruct{Msg: "Hello"})
 - Configurable for both latency and throughput use cases
   - Configurable read/write buffer sizes
   - Configurable flush window timing
+- Can be configured for close to zero allocations
 
 ## Preliminary Benchmarks
 
