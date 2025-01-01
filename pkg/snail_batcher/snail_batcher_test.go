@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/GiGurra/snail/pkg/snail_logging"
 	"github.com/GiGurra/snail/pkg/snail_test_util"
+	"github.com/google/go-cmp/cmp"
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"log/slog"
+	"slices"
 	"testing"
 	"time"
 )
@@ -75,6 +77,70 @@ func TestPerfOfNewSnailBatcher(t *testing.T) {
 
 	slog.Info(fmt.Sprintf("Processed %s items in %s", prettyInt3Digits(int64(nItems)), timeElapsed))
 	slog.Info(fmt.Sprintf("Rate: %s items/sec", prettyInt3Digits(int64(rate))))
+}
+
+func TestAddMany(t *testing.T) {
+
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	nItems := 100
+	batchSize := 10 // 10 000 seems to be the sweet spot
+
+	// ensure nItems is a multiple of batchSize
+	if //goland:noinspection GoBoolExpressions
+	nItems%batchSize != 0 {
+		t.Fatalf("nItems must be a multiple of batchSize")
+	}
+
+	itemsToAdd := make([]int, nItems)
+	for i := 0; i < nItems; i++ {
+		itemsToAdd[i] = i
+	}
+
+	resultsChannel := make(chan []int, nItems/batchSize)
+
+	batcher := NewSnailBatcher[int](
+		batchSize,
+		batchSize*2,
+		true,
+		1*time.Minute, // dont want the tickers interfering
+		func(values []int) error {
+			slog.Info(fmt.Sprintf("Received %d items", len(values)))
+			resultsChannel <- slices.Clone(values)
+			return nil
+		},
+	)
+
+	batcher.AddMany(itemsToAdd)
+
+	slog.Info("waiting for results")
+
+	receivedItems := make([]int, 0, nItems)
+
+	for len(receivedItems) < nItems {
+		select {
+		case items := <-resultsChannel:
+			if len(items) != batchSize {
+				t.Fatalf("unexpected batch size %d", len(items))
+			}
+			for _, item := range items {
+				receivedItems = append(receivedItems, item)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timeout waiting for results")
+		}
+	}
+
+	if len(receivedItems) != nItems {
+		t.Fatalf("unexpected total received %d", len(receivedItems))
+	}
+
+	if diff := cmp.Diff(itemsToAdd, receivedItems); diff != "" {
+		t.Fatalf("unexpected items received: %s", diff)
+	}
+
+	slog.Info("all results received")
+
 }
 
 func TestPerfOfNewSnailBatcher_efficientRoutines(t *testing.T) {

@@ -144,11 +144,26 @@ func (sb *SnailBatcher[T]) unlockMutex() {
 	}
 }
 
-func (sb *SnailBatcher[T]) AddMany(items []T) {
+func (sb *SnailBatcher[byte]) AddMany(newItems []byte) {
 	sb.lockMutex()
 	defer sb.unlockMutex()
-	for _, item := range items {
-		sb.addUnsafe(item)
+
+	for itemsAdded, itemsLeftToAdd := 0, len(newItems); itemsLeftToAdd > 0; {
+
+		if sb.currentBackBuffer == nil {
+			sb.currentBackBuffer = <-sb.pullChan
+		}
+
+		spaceLeftInCurrentBackBuffer := sb.batchSize - len(sb.currentBackBuffer)
+		itemsToAddThisBatch := min(spaceLeftInCurrentBackBuffer, itemsLeftToAdd)
+		sb.currentBackBuffer = append(sb.currentBackBuffer, newItems[itemsAdded:itemsAdded+itemsToAddThisBatch]...)
+
+		if len(sb.currentBackBuffer) >= sb.batchSize {
+			sb.flushUnsafe()
+		}
+
+		itemsAdded += itemsToAddThisBatch
+		itemsLeftToAdd -= itemsToAddThisBatch
 	}
 }
 
