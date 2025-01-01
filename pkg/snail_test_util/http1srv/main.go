@@ -12,8 +12,6 @@ import (
 )
 
 func main() {
-	// This is a dummy http1.1 server
-	//port := 8080
 	port := 9080
 	srv, err := snail_tcp.NewServer(newHandlerFunc, &snail_tcp.SnailServerOpts{
 		Port:        port,
