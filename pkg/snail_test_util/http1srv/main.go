@@ -35,10 +35,11 @@ func newHandlerFunc(conn net.Conn) snail_tcp.ServerConnHandler {
 
 	//writeBuf := snail_buffer.New(snail_buffer.LittleEndian, 64*1024)
 
+	dateStr := time.Now().Format(time.RFC1123)
 	defaultResponse := []byte(StripMargin(
 		`|HTTP/1.1 200 OK
 			 |Server: snail
-			 |Date: Mon, 27 Jul 2009 12:28:53 GMT
+			 |Date: ` + dateStr + `
 			 |Connection: keep-alive
 			 |Content-Length: 0
 			 |
