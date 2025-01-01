@@ -3,6 +3,7 @@ package cmd_load_h1
 import (
 	"fmt"
 	"github.com/GiGurra/boa/pkg/boa"
+	"github.com/GiGurra/snail/pkg/snail_test_util/strutil"
 	"github.com/spf13/cobra"
 	"log/slog"
 	"net/url"
@@ -94,3 +95,12 @@ func exitWithError(msg string) {
 	slog.Error(msg)
 	os.Exit(1)
 }
+
+var defaultRequestString = []byte(strutil.StripMargin(
+	`|GET / HTTP/1.1
+		 |Host: localhost:9080
+		 |User-Agent: snail
+		 |Accept: */*
+		 |
+		 |`,
+))
