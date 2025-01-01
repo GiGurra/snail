@@ -107,6 +107,7 @@ learned:
       able to achieve the desired global throughput.
     * For efficient fan-out and fan-in when aiming for throughput on the order of 100s of millions of elements per
       second for your system as a whole/globally, channels are just simply too slow, by 1-2 orders of magnitude.
+    * However: Channels are fantastic for efficiently transferring prepared batches between different goroutines.
 * The Go standard library mutex implementation performs wildly different on different platforms and in different
   contention levels. For example, on MacOS using Apple Silicon, if is very fast if not contended - but if contended, it
   is incredibly very slow between 2-8 concurrent goroutines (only achieving single digit million of operations per
