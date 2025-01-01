@@ -79,6 +79,7 @@ client.Send(requestStruct{Msg: "Hello"})
   - Uses a combination of atomics, locks and channels.
   - Regular channels are insufficient for high-throughput scenarios, and the custom system is about 10x faster on
     average.
+  - Fan-in is especially tricky, but is solved using an n-buffer solution (default=triple buffering), inspired by game programming.
 - Configurable TCP options (buffer sizes)
 - Configurable for both latency and throughput use cases
 
