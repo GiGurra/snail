@@ -133,7 +133,7 @@ learned:
 * The fan-in problem combined with batching is difficult to do efficiently. Neither channels or mutexes alone solves the
   problem entirely on their own.
 * Memory allocation is grossly expensive in Go (and in most non-moving/non-generational systems) when you try to shuffle
-  around 10-20 GB/s (see below why this number mattersn). On my linux machine, you will be spending all of your time in
+  around 10-20 GB/s (see below why this number matters). On my linux machine, you will be spending all of your time in
   memory allocation. So if you want to shuffle data at that rate (which we want to, see below), you'll need to either
   avoid allocations entirely, or use a custom memory allocator/object pooling.
 * Circular buffers are awesome. Double/triple buffers are awesome. Atomics are awesome :).
