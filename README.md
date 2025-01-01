@@ -90,7 +90,7 @@ Measured on
 - WSL2 Ubuntu 22.04 on Windows 11
 
 Numbers:
-- Reference max bandwidth on loopback: 240-250 GBit/s
+- Reference max bandwidth achieved on loopback: 240-250 GBit/s
   - achieved sending larger (10kB+) byte chunks as messages without
   - `hperf3` achieved only about 135 GBit/s, but I'm probably using it wrong
 - Request rate with small, individually processed, messages (4 Bytes/message): 300-350 million requests/s
