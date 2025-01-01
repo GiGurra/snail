@@ -25,6 +25,15 @@ go get github.com/GiGurra/snail
 ### Shared
     
 ```go
+
+type requestStruct struct {
+    Msg string
+}
+
+type responseStruct struct {
+    Msg string
+}
+
 reqCodec := snail_parser.NewJsonLinesCodec[requestStruct]()
 respCodec := snail_parser.NewJsonLinesCodec[responseStruct]()
 ```
