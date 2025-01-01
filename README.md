@@ -92,7 +92,7 @@ learned:
 * If you aim to create a system capable of achieving for example 100 million elements/messages per second on a global
   level (=through the chain of steps/components in entire system including TCP transmissions, service->service), which
   is roughly the level we aim for, each individual step in the chain must be significantly faster than 100 million
-  elements/messages per second.
+  elements/messages per second when given the full power of the CPU available to all systems.
 * Implementing batching/the train station concept for request-responses is basically a challenge of:
     * Batching
         * How to pick the right batch size, how to store batches and manage memory allocation, and how to auto time
