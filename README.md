@@ -1,4 +1,4 @@
-Here's a GitHub README.md for your project:
+Here's a what Anthropic claude 3.5 sonnet thinks about this project:
 
 # Snail 🐌
 
@@ -119,4 +119,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - GiGurra
 - Github Copilot
-- Anthropic Claude 3.5
+- Anthropic Claude 3.5 sonnet
