@@ -1041,3 +1041,10 @@ func writeAll[T any](
 	}
 	return nil
 }
+
+func parseOne[T any](
+	buffer *snail_buffer.Buffer,
+	parseFunc ParseFunc[T],
+) ParseOneResult[T] {
+	return parseFunc(buffer)
+}

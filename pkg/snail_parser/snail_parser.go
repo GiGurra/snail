@@ -26,13 +26,6 @@ type ParseOneResult[T any] struct {
 	Err    error
 }
 
-func parseOne[T any](
-	buffer *snail_buffer.Buffer,
-	parseFunc ParseFunc[T],
-) ParseOneResult[T] {
-	return parseFunc(buffer)
-}
-
 func ParseAll[T any](
 	buffer *snail_buffer.Buffer,
 	parseFunc ParseFunc[T],
