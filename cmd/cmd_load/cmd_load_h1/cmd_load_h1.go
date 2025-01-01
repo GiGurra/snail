@@ -157,8 +157,6 @@ func Cmd() *cobra.Command {
 			)
 			type receiveState struct {
 				Status        Status
-				StartAt       int
-				EndAt         int
 				ConsecutiveLF int
 			}
 
@@ -187,7 +185,6 @@ func Cmd() *cobra.Command {
 							case LookingForStart:
 								if b == 'H' {
 									// found the start!
-									state.StartAt = i
 									state.Status = LookingForEnd
 								}
 							case LookingForEnd:
