@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"runtime"
 	"sync/atomic"
-	"unsafe"
 )
 
 const CacheLinePadding = 64 // makes it 2-3x faster :D, due to prevention of false sharing
@@ -49,14 +48,3 @@ tryAgain:
 	b.data[writePos] = item
 	b.nWritten.Add(1)
 }
-
-// ToPointer Helper function to convert any value to unsafe.Pointer
-func ToPointer[T any](item T) unsafe.Pointer {
-	return unsafe.Pointer(&item)
-}
-
-//go:linkname procPin runtime.procPin
-func procPin() int
-
-//go:linkname procUnpin runtime.procUnpin
-func procUnpin()
