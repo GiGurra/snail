@@ -546,6 +546,136 @@ func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_gorout
 	slog.Info(fmt.Sprintf("Server bandwidth usage [bits:snd+rcv]: %s bits/sec", prettyInt3Digits(int64((serverRespBytesPerSec+serverSendBytesPerSec)*8))))
 }
 
+func TestNewClient_SendAndRespondWithInts_1s_batched_performance_multiple_goroutines_single_client_batcher(t *testing.T) {
+	snail_logging.ConfigureDefaultLogger("text", "info", false)
+
+	slog.Info("TestNewServer_SendAndRespondWithInts")
+
+	testLength := 1 * time.Second
+	nGoRoutines := 512
+	batchSize := 5 * 1024
+
+	codec := snail_parser.NewInt32Codec()
+
+	server, err := NewServer[int32, int32](
+		func() ServerConnHandler[int32, int32] {
+			return func(req int32, repFunc func(resp int32) error) error {
+				if repFunc == nil {
+					return nil
+				}
+				return repFunc(req)
+			}
+		},
+		nil,
+		codec.Parser,
+		codec.Writer,
+		&SnailServerOpts[int32, int32]{Batcher: NewBatcherOpts(batchSize)},
+	)
+
+	if err != nil {
+		t.Fatalf("error creating server: %v", err)
+	}
+
+	if server == nil {
+		t.Fatalf("expected server, got nil")
+	}
+
+	defer server.Close()
+
+	sums := make([]int64, nGoRoutines)
+	nReqResps := atomic.Int64{}
+
+	wgWriters := sync.WaitGroup{}
+	wgWriters.Add(nGoRoutines)
+	respHandler := func(resp int32, status ClientStatus) error {
+
+		if resp < 0 {
+			resp = -resp - 1
+			nReqResps.Add(sums[resp])
+			wgWriters.Done()
+			return nil
+		}
+
+		sums[resp] += 1
+
+		return nil
+	}
+
+	slog.Info("Creating client")
+	client, err := NewClient[int32, int32](
+		"localhost",
+		server.Port(),
+		nil,
+		respHandler,
+		codec.Writer,
+		codec.Parser,
+	)
+	if err != nil {
+		t.Fatalf("error creating client: %v", err)
+	}
+	defer client.Close()
+
+	slog.Info("Creating client batcher")
+	batcher := snail_batcher.NewSnailBatcher[int32](
+		batchSize,
+		batchSize*2,
+		true,
+		1*time.Minute,
+		func(values []int32) error {
+			return client.SendBatchUnsafe(values)
+		},
+	)
+
+	withinTestWindow := atomic.Bool{}
+	withinTestWindow.Store(true)
+	go func() {
+		time.Sleep(testLength)
+		slog.Info("Test window is over")
+		withinTestWindow.Store(false)
+	}()
+
+	slog.Info("Running senders")
+	t0 := time.Now()
+	lop.ForEach(lo.Range(nGoRoutines), func(i int, _ int) {
+
+		for withinTestWindow.Load() {
+			batcher.Add(int32(i))
+		}
+
+		batcher.Add(int32(-i - 1)) // Signal that this client is done
+		batcher.Flush()
+	})
+
+	slog.Info("Senders are done")
+	elapsedSend := time.Since(t0)
+
+	slog.Info("Waiting to receive all responses")
+	wgWriters.Wait()
+
+	elapsedRecv := time.Since(t0)
+
+	slog.Info(fmt.Sprintf("Sent %v requests in %v", prettyInt3Digits(nReqResps.Load()), elapsedSend))
+	slog.Info(fmt.Sprintf("Received %v responses in %v", prettyInt3Digits(nReqResps.Load()), elapsedRecv))
+
+	respRate := float64(nReqResps.Load()) / elapsedRecv.Seconds()
+	sendRate := float64(nReqResps.Load()) / elapsedSend.Seconds()
+
+	slog.Info(fmt.Sprintf("Response rate: %s items/sec", prettyInt3Digits(int64(respRate))))
+	slog.Info(fmt.Sprintf("Send rate: %s items/sec", prettyInt3Digits(int64(sendRate))))
+
+	clientRespBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedRecv.Seconds()
+	clientSendBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedSend.Seconds()
+
+	serverRespBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedRecv.Seconds()
+	serverSendBytesPerSec := float64(nReqResps.Load()) * 4 / elapsedRecv.Seconds()
+
+	slog.Info(fmt.Sprintf("Client bandwidth usage [bytes:snd+rcv]: %s bytes/sec", prettyInt3Digits(int64(clientRespBytesPerSec+clientSendBytesPerSec))))
+	slog.Info(fmt.Sprintf("Server bandwidth usage [bytes:snd+rcv]: %s bytes/sec", prettyInt3Digits(int64(serverRespBytesPerSec+serverSendBytesPerSec))))
+
+	slog.Info(fmt.Sprintf("Client bandwidth usage [bits:snd+rcv]: %s bits/sec", prettyInt3Digits(int64((clientRespBytesPerSec+clientSendBytesPerSec)*8))))
+	slog.Info(fmt.Sprintf("Server bandwidth usage [bits:snd+rcv]: %s bits/sec", prettyInt3Digits(int64((serverRespBytesPerSec+serverSendBytesPerSec)*8))))
+}
+
 type stupidJsonStruct struct {
 	Msg            string `json:"msg"`
 	Bla            int    `json:"bla"`
@@ -852,7 +982,7 @@ func TestNewClient_SendAndRespondWithStruct_1s_batched_performance_multiple_goro
 		batchers[i] = snail_batcher.NewSnailBatcher[*requestTestStruct](
 			batchSize,
 			batchSize*5,
-			false,
+			true,
 			1*time.Minute,
 			func(values []*requestTestStruct) error {
 				return client.SendBatchUnsafe(values)
