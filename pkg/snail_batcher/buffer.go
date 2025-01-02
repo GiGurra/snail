@@ -35,9 +35,7 @@ tryAgain:
 		for b.nWritten.Load() != uint64(len(b.data)) {
 			runtime.Gosched() // must wait until all elements are written, i.e. all other goroutines have finished writing
 		}
-		// we flush
 		slog.Info(fmt.Sprintf("Flushing buffer. nWritten: %d", b.nWritten.Load()))
-		b.data = make([]int64, len(b.data))
 		b.nWritten.Store(0)
 		b.writePos.Store(0)
 		goto tryAgain
