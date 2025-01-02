@@ -20,13 +20,9 @@ type proccessingBatch[T any] struct {
 }
 
 type Buffer[T any] struct {
-	_             [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
-	pullChanMutex sync.Mutex
-	_             [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
+	newBatchMutex sync.Mutex
 	pushChan      chan flushingBatch[T]
-	_             [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
 	pullChan      chan []T
-	_             [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
 	currentBatch  atomic.Pointer[proccessingBatch[T]]
 }
 
@@ -88,8 +84,8 @@ tryAgain:
 	var batch *proccessingBatch[T] = b.currentBatch.Load()
 	if batch == nil {
 		func() {
-			b.pullChanMutex.Lock()
-			defer b.pullChanMutex.Unlock()
+			b.newBatchMutex.Lock()
+			defer b.newBatchMutex.Unlock()
 			batch = b.currentBatch.Load()
 			if batch == nil {
 				data := <-b.pullChan
