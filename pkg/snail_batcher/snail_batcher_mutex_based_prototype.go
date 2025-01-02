@@ -6,20 +6,18 @@ import (
 	"sync"
 )
 
-// CacheLinePadding has no effect for the mutex based solution. No clue why :D
-
-type BufferWithMutex struct {
+type SnailBatcherMutexBasedPrototype[T any] struct {
 	mutex sync.Mutex
-	data  []int64
+	data  []T
 }
 
-func NewBufferWithMutex(size int) *BufferWithMutex {
-	return &BufferWithMutex{
-		data: make([]int64, 0, size),
+func NewBufferMutexBasedPrototype[T any](size int) *SnailBatcherMutexBasedPrototype[T] {
+	return &SnailBatcherMutexBasedPrototype[T]{
+		data: make([]T, 0, size),
 	}
 }
 
-func (b *BufferWithMutex) PushOne(item int64) {
+func (b *SnailBatcherMutexBasedPrototype[T]) PushOne(item T) {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 

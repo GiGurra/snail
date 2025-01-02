@@ -3,7 +3,6 @@ package snail_batcher
 import (
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -38,13 +37,20 @@ type SnailBatcher[T any] struct {
 	batchSize int
 	queueSize int
 
-	pushChan          chan []T
-	pullChan          chan []T
-	currentBackBuffer []T
+	_        [CacheLinePadding]byte // empirically added, 5% boost together with the others
+	pushChan chan []T
+	_        [CacheLinePadding]byte // empirically added, 5% boost together with the others
+	pullChan chan []T
+	_        [CacheLinePadding]byte // empirically added, 5% boost together with the others
 
-	lock         sync.Mutex
-	idiotLock    atomic.Bool
-	useIdiotLock bool
+	currentBackBuffer []T
+	_                 [CacheLinePadding]byte // empirically added, 5% boost together with the others
+	lock              sync.Mutex
+	_                 [CacheLinePadding]byte // empirically added, 5% boost together with the others
+	idiotLock         atomic.Bool
+	_                 [CacheLinePadding]byte // empirically added, 5% boost together with the others
+	useIdiotLock      bool
+	_                 [CacheLinePadding]byte // empirically added, 5% boost together with the others
 
 	timeout    time.Duration
 	outputFunc func([]T) error
@@ -124,11 +130,11 @@ func (sb *SnailBatcher[T]) lockMutex() {
 	if sb.useIdiotLock {
 
 		for !sb.idiotLock.CompareAndSwap(false, true) {
-			if rand.Float32() < 0.001 {
-				time.Sleep(1 * time.Microsecond)
-			} else {
-				runtime.Gosched()
-			}
+			//if rand.Float32() < 0.001 {
+			//	time.Sleep(1 * time.Microsecond)
+			//} else {
+			runtime.Gosched()
+			//}
 		}
 
 	} else {

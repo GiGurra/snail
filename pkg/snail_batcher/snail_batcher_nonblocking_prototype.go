@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 )
 
-const CacheLinePadding = 64 // makes it 2-3x faster :D, due to prevention of false sharing
+const CacheLinePadding = 256 // arm: 32, amd: 64, intel 16-256 :S
 
 type proccessingBatch[T any] struct {
 	_        [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
@@ -19,7 +19,7 @@ type proccessingBatch[T any] struct {
 	data     []T
 }
 
-type Buffer[T any] struct {
+type SnailBatcherNonBlockingPrototype[T any] struct {
 	newBatchMutex sync.Mutex
 	pushChan      chan flushingBatch[T]
 	pullChan      chan []T
@@ -31,7 +31,7 @@ type flushingBatch[T any] struct {
 	buf  []T
 }
 
-func NewBuffer[T any](batchSize int, queueSize int) *Buffer[T] {
+func NewSnailBatcherNonBlockingPrototype[T any](batchSize int, queueSize int) *SnailBatcherNonBlockingPrototype[T] {
 
 	if queueSize <= 0 {
 		panic("queueSize must be greater than 0")
@@ -43,7 +43,7 @@ func NewBuffer[T any](batchSize int, queueSize int) *Buffer[T] {
 
 	totalBufCount := queueSize/batchSize + 1
 
-	res := &Buffer[T]{
+	res := &SnailBatcherNonBlockingPrototype[T]{
 		pushChan: make(chan flushingBatch[T], totalBufCount),
 		pullChan: make(chan []T, totalBufCount),
 	}
@@ -58,11 +58,11 @@ func NewBuffer[T any](batchSize int, queueSize int) *Buffer[T] {
 	return res
 }
 
-func (b *Buffer[T]) Close() {
+func (b *SnailBatcherNonBlockingPrototype[T]) Close() {
 	close(b.pushChan)
 }
 
-func (b *Buffer[T]) workerLoop() {
+func (b *SnailBatcherNonBlockingPrototype[T]) workerLoop() {
 
 	// TODO: Create ticker to flush buffer every x seconds
 
@@ -77,7 +77,7 @@ func (b *Buffer[T]) workerLoop() {
 	}
 }
 
-func (b *Buffer[T]) PushOne(item T) {
+func (b *SnailBatcherNonBlockingPrototype[T]) PushOne(item T) {
 
 tryAgain:
 
