@@ -37,6 +37,7 @@ tryAgain:
 		}
 		// we flush
 		slog.Info(fmt.Sprintf("Flushing buffer. nWritten: %d", b.nWritten.Load()))
+		b.data = make([]int64, len(b.data))
 		b.nWritten.Store(0)
 		b.writePos.Store(0)
 		goto tryAgain
