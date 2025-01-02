@@ -9,7 +9,11 @@ import (
 
 const CacheLinePadding = 64 // makes it 2-3x faster :D, due to prevention of false sharing
 
-type Buffer struct {
+type Buffer[T any] struct {
+	_        [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
+	pushChan chan []int64
+	_        [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
+	pullChan chan []int64
 	_        [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
 	writePos atomic.Uint64
 	_        [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
@@ -17,16 +21,25 @@ type Buffer struct {
 	//_        [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
 	//bufsize  int
 	_    [CacheLinePadding]byte // makes it 2-3x faster :D, due to prevention of false sharing
-	data []int64
+	data []T
 }
 
-func NewBuffer(size int) *Buffer {
-	return &Buffer{
-		data: make([]int64, size),
+func NewBuffer[T any](batchSize int, queueSize int) *Buffer[T] {
+
+	if queueSize <= 0 {
+		panic("queueSize must be greater than 0")
+	}
+
+	if queueSize%batchSize != 0 {
+		panic("queueSize must be a multiple of batchSize")
+	}
+
+	return &Buffer[T]{
+		data: make([]T, batchSize),
 	}
 }
 
-func (b *Buffer) PushOne(item int64) {
+func (b *Buffer[T]) PushOne(item T) {
 
 tryAgain:
 

@@ -12,11 +12,11 @@ func TestBuffer(t *testing.T) {
 
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
 
-	numProducers := 512
+	numProducers := 1000
 	totalElements := 640_000_000
 	elementsPerProducer := totalElements / numProducers
 
-	buf := NewBuffer(totalElements / 10)
+	buf := NewBuffer[int64](totalElements/10, totalElements/5)
 
 	// Example of multiple producers
 	var wg sync.WaitGroup
