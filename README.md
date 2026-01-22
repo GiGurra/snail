@@ -3,9 +3,6 @@
 A high-throughput TCP networking library for Go that achieves 300M+ request-response operations per second through intelligent batching.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/GiGurra/snail)](https://goreportcard.com/report/github.com/GiGurra/snail)
-
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://gigurra.github.io/snail/)
 
 ## Why Snail?
