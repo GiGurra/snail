@@ -1,0 +1,58 @@
+site_name: Snail
+site_url: https://gigurra.github.io/snail/
+site_description: High-throughput TCP networking library for Go with intelligent batching
+repo_url: https://github.com/GiGurra/snail
+repo_name: GiGurra/snail
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.highlight
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - The Design:
+    - Train Station Concept: design/train-station.md
+    - Architecture: design/architecture.md
+  - The Journey:
+    - Evolution: journey/evolution.md
+    - Lessons Learned: journey/lessons-learned.md
+  - Performance:
+    - Benchmarks: performance/benchmarks.md
+    - Tuning Guide: performance/tuning.md
+  - API Reference:
+    - snail_tcp_reqrep: api/tcp-reqrep.md
+    - snail_batcher: api/batcher.md
+    - snail_parser: api/parser.md
