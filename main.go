@@ -12,14 +12,12 @@ type Params struct {
 
 func main() {
 	snail_logging.ConfigureDefaultLogger("text", "info", false)
-	params := Params{}
-	boa.Wrap{
+	boa.CmdT[Params]{
 		Use:         "snail",
 		Short:       "run snail tools",
-		Params:      &params,
 		ParamEnrich: boa.ParamEnricherDefault,
-		SubCommands: []*cobra.Command{
+		SubCmds: []*cobra.Command{
 			cmd_load.Cmd(),
 		},
-	}.ToApp()
+	}.Run()
 }

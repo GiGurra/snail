@@ -10,14 +10,12 @@ type Params struct {
 }
 
 func Cmd() *cobra.Command {
-	params := Params{}
-	return boa.Wrap{
+	return boa.CmdT[Params]{
 		Use:         "load",
 		Short:       "run load testing commands",
-		Params:      &params,
 		ParamEnrich: boa.ParamEnricherDefault,
-		SubCommands: []*cobra.Command{
+		SubCmds: []*cobra.Command{
 			cmd_load_h1.Cmd(),
 		},
-	}.ToCmd()
+	}.ToCobra()
 }

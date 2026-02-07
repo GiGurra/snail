@@ -2,6 +2,12 @@ package cmd_load_h1
 
 import (
 	"fmt"
+	"log/slog"
+	"net/url"
+	"os"
+	"strconv"
+	"time"
+
 	"github.com/GiGurra/boa/pkg/boa"
 	"github.com/GiGurra/snail/pkg/snail_batcher"
 	"github.com/GiGurra/snail/pkg/snail_buffer"
@@ -11,11 +17,6 @@ import (
 	"github.com/samber/lo"
 	lop "github.com/samber/lo/parallel"
 	"github.com/spf13/cobra"
-	"log/slog"
-	"net/url"
-	"os"
-	"strconv"
-	"time"
 )
 
 type Params struct {
@@ -67,7 +68,7 @@ func (p *Params) WithValidation() *Params {
 
 func Cmd() *cobra.Command {
 	params := new(Params).WithValidation()
-	return boa.Wrap{
+	return boa.Cmd{
 		Use:    "h1",
 		Short:  "run http1.1 load testing",
 		Params: params,
@@ -76,7 +77,7 @@ func Cmd() *cobra.Command {
 			boa.ParamEnricherShort,
 			boa.ParamEnricherBool,
 		),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunFunc: func(cmd *cobra.Command, args []string) {
 			if params.Duration.HasValue() && params.NumberOfRequests.HasValue() {
 				exitWithError("Cannot specify both duration and number of requests")
 			}
@@ -252,7 +253,7 @@ func Cmd() *cobra.Command {
 				exitWithError("Invalid application mode. Neither duration or number of requests was set")
 			}
 		},
-	}.ToCmd()
+	}.ToCobra()
 }
 
 func exitWithError(msg string) {
